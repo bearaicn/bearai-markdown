@@ -224,9 +224,35 @@ function resolveRelativeImages(html: string, baseDir: string): string {
         return `${before}${src}${after}`;
       }
     }
+  ).replace(
+    /(<(?:img|source)\s[^>]*?\bsrcset=")([^"]+)(")/gi,
+    (_match, before, srcset, after) => `${before}${resolveSrcset(srcset, baseDir)}${after}`
   );
 }
 
+function resolveSrcset(srcset: string, baseDir: string): string {
+  return srcset
+    .split(",")
+    .map((candidate) => {
+      const trimmed = candidate.trim();
+      if (!trimmed) return trimmed;
+
+      const [src, ...descriptor] = trimmed.split(/\s+/);
+      if (isExternalSrc(src)) return trimmed;
+
+      try {
+        const converted = convertFileSrc(resolveImagePath(src, baseDir));
+        return [converted, ...descriptor].join(" ");
+      } catch {
+        return trimmed;
+      }
+    })
+    .join(", ");
+}
+
+function isExternalSrc(src: string): boolean {
+  return /^(?:https?:\/\/|data:|blob:|asset:|file:)/i.test(src);
+}
 function resolveImagePath(src: string, baseDir: string): string {
   const decodedSrc = decodeImageSrc(src);
   if (isAbsolutePath(decodedSrc)) return decodedSrc;

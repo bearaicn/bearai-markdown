@@ -172,6 +172,11 @@
     if (!activeTab || target === currentMode) return;
     if (target === "editor" && !canEditActive) return;
 
+    // Close the find overlay on any mode change so a search started against one
+    // target (viewer/raw/editor) can't leave a stale match count or highlights
+    // behind when the on-screen target changes.
+    searchVisible = false;
+
     const line = getCurrentSourceLine(currentMode);
 
     // Apply state changes for the target mode

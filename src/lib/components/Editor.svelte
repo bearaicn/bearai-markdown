@@ -180,6 +180,16 @@
     word-wrap: break-word;
     overflow-wrap: break-word;
     box-sizing: border-box;
+    /* Both layers MUST reserve an identical scrollbar gutter, otherwise their
+       lines wrap at different widths. The textarea is the scroll container, so
+       when its vertical scrollbar appears it shrinks the text width by the
+       scrollbar's size; the backdrop (no scrollbar) would keep the full width,
+       so its lines wrap later and the highlights drift up by one row per
+       differently-wrapped line, accumulating down the document. Forcing
+       `overflow-y: scroll` on BOTH always reserves the same gutter (zero with
+       macOS overlay scrollbars, ~15px with classic ones), keeping them in sync. */
+    overflow-x: hidden;
+    overflow-y: scroll;
   }
 
   .editor {
@@ -187,7 +197,6 @@
     outline: none;
     resize: none;
     color: #1c1c1e;
-    overflow: auto;
     z-index: 1;
   }
 
@@ -200,7 +209,6 @@
   }
 
   .editor-backdrop {
-    overflow: hidden;
     color: transparent;
     pointer-events: none;
     user-select: none;

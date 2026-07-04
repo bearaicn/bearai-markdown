@@ -13,7 +13,7 @@
     saveFile,
   } from "$lib/tauri/files";
   import { showToast } from "$lib/stores/toast";
-  import { settings } from "$lib/stores/settings";
+  import { settings, getContentMaxWidth } from "$lib/stores/settings";
   import { startFileWatcher } from "$lib/tauri/watcher";
   import { themeMode, cycleTheme } from "$lib/stores/theme";
   import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -58,6 +58,7 @@
   let customPromptSelection = $state("");
   let zenMode = $state(false);
   let rawMode = $state(false);
+  let contentMaxWidth = $derived(getContentMaxWidth($settings));
 
   // Lightbox state
   let lightboxVisible = $state(false);
@@ -893,13 +894,13 @@
         onChange={(v) => tabStore.updateEditContent(activeTab!.id, v)}
         fontSize={$settings.fontSize}
         lineHeight={$settings.lineHeight}
-        maxWidth={$settings.maxWidth}
+        maxWidth={contentMaxWidth}
       />
     {:else if rawMode}
       <main class="content-main" class:toc-spaced={$tocVisible && $tocEntries.length > 0}>
         <pre
           class="raw-source"
-          style="font-size: {$settings.fontSize}px; line-height: {$settings.lineHeight}; max-width: {$settings.maxWidth}px;"
+          style="font-size: {$settings.fontSize}px; line-height: {$settings.lineHeight}; max-width: {contentMaxWidth};"
         ><code>{$docStore.content}</code></pre>
       </main>
     {:else}

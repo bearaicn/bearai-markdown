@@ -76,10 +76,10 @@
       </div>
     </div>
 
-    <div class="rc-group" style="margin-bottom: 0;">
+    <div class="rc-group" class:disabled={$settings.widthMode === "wide"} style="margin-bottom: 0;">
       <div class="rc-label-row">
         <span class="rc-label">Content width</span>
-        <span class="rc-value">{$settings.maxWidth}px</span>
+        <span class="rc-value">{$settings.widthMode === "wide" ? "Wide" : `${$settings.maxWidth}px`}</span>
       </div>
       <input
         type="range"
@@ -87,6 +87,7 @@
         max="3840"
         step="80"
         value={$settings.maxWidth}
+        disabled={$settings.widthMode === "wide"}
         oninput={(e) => settings.update((s) => ({ ...s, maxWidth: parseInt(e.currentTarget.value) }))}
         class="rc-range"
       />
@@ -142,6 +143,16 @@
 
   .rc-group {
     margin-bottom: 14px;
+  }
+
+  /* Content width has no effect while "Wide" is active — dim + block it so the
+     dependency is visible rather than a silently dead slider. */
+  .rc-group.disabled {
+    opacity: 0.4;
+  }
+
+  .rc-group.disabled .rc-range {
+    cursor: not-allowed;
   }
 
   .rc-label {

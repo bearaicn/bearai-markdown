@@ -12,6 +12,7 @@
     },
     "dialog:default",
     "cli:default",
+    "window-state:default",
     "core:event:default",
     "core:window:default",
     "core:window:allow-set-title",

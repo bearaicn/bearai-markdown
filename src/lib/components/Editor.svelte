@@ -39,8 +39,14 @@
   // there. The textarea's opaque text renders on top of the (transparent)
   // backdrop text, so only the match backgrounds show through.
   const matches = $derived(findMatches(localValue, $searchQuery));
+  // Mirror the text with an appended trailing newline so the pre-wrap backdrop
+  // reserves the same final line a <textarea> always keeps. Without it the
+  // backdrop is ~1 line shorter, so near the document bottom its scrollTop
+  // clamps to a smaller max and the highlights drift ~1 line below the text.
+  // `matches` are computed on the un-suffixed `localValue`, so the extra newline
+  // sits past every match and can't shift any offset.
   const highlightHtml = $derived(
-    $searchQuery ? buildHighlightHtml(localValue, matches, $searchActiveIndex) : ""
+    $searchQuery ? buildHighlightHtml(localValue + "\n", matches, $searchActiveIndex) : ""
   );
 
   // Publish the match count so the overlay's "n/total" counter and its

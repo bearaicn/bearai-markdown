@@ -6,6 +6,7 @@
   import { openFileDialog } from "../tauri/files";
   import { copyAsRichText, copyAsMarkdown } from "../utils/clipboard";
   import ReaderControls from "./ReaderControls.svelte";
+  import brandLogo from "$lib/assets/mdhero-icon.png";
 
   let {
     onPaste = () => {},
@@ -110,6 +111,8 @@
 
 <header class="toolbar">
   <div class="toolbar-left">
+    <img src={brandLogo} alt="MDHero" width="26" height="26" class="toolbar-logo" />
+    <span class="toolbar-wordmark">MDHero</span>
     <div class="btn-group">
       <button onclick={onOpen} class="btn btn-primary" title="Open file (Cmd+O)">
         Open
@@ -122,12 +125,8 @@
       </button>
     </div>
 
-    {#if $document.fileName}
-      <span class="filename">{$document.fileName}</span>
-      {#if currentHeading}
-        <span class="heading-sep">/</span>
-        <span class="current-heading">{currentHeading}</span>
-      {/if}
+    {#if $document.fileName && currentHeading}
+      <span class="current-heading">{currentHeading}</span>
     {/if}
   </div>
 
@@ -200,6 +199,8 @@
         <line x1="9" y1="3" x2="7" y2="13"/>
       </svg>
     </button>
+
+    <div class="separator"></div>
 
     <button
       onclick={onEditToggle}
@@ -341,6 +342,25 @@
     min-width: 0;
   }
 
+  .toolbar-logo {
+    flex-shrink: 0;
+    border-radius: 6px;
+    display: block;
+  }
+
+  .toolbar-wordmark {
+    flex-shrink: 0;
+    font-size: 17px;
+    font-weight: 600;
+    color: #1c1c1e;
+    letter-spacing: -0.01em;
+    margin-left: -3px;
+  }
+
+  :global(html.dark) .toolbar-wordmark {
+    color: #e5e5e7;
+  }
+
   .toolbar-right {
     display: flex;
     align-items: center;
@@ -446,25 +466,6 @@
   :global(html.dark) .btn-icon.active {
     background: #0A1E2E;
     color: #22D3EE;
-  }
-
-  .filename {
-    font-size: 12px;
-    color: #8e8e93;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 180px;
-  }
-
-  .heading-sep {
-    font-size: 11px;
-    color: #d1d1d6;
-    margin: 0 2px;
-  }
-
-  :global(html.dark) .heading-sep {
-    color: #3a3a3c;
   }
 
   .current-heading {

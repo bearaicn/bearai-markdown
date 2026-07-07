@@ -452,15 +452,15 @@
     border-radius: 8px;
   }
 
-  /* Horizontal rules */
+  /* Horizontal rules — subtle divider, not a slab */
   article :global(hr) {
     border: none;
-    border-top: 1px solid #e5e5ea;
-    margin: 2em 0;
+    border-top: 1px solid #ededf0;
+    margin: 2.5em 0;
   }
 
   :global(html.dark) article :global(hr) {
-    border-top-color: #2c2c2e;
+    border-top-color: #242426;
   }
 
   /* Task lists */

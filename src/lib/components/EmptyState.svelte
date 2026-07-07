@@ -6,6 +6,7 @@
   import { pinnedFolders } from "../stores/pinned";
   import { settings } from "../stores/settings";
   import UpdateBanner from "./UpdateBanner.svelte";
+  import brandLogo from "$lib/assets/mdhero-icon.png";
 
   let { onOpenUrl = () => {} }: { onOpenUrl?: () => void } = $props();
 
@@ -109,17 +110,37 @@
 <div class="empty-root" style="zoom: {scale};">
   <!-- Hero bar -->
   <div class="hero-bar">
-    <h1 class="hero-title">MDHero</h1>
-    <span class="hero-sep">&mdash;</span>
-    <p class="hero-desc">A native Markdown reader and editor.</p>
+    <img src={brandLogo} alt="MDHero" width="48" height="48" class="hero-logo" />
+    <div class="hero-text">
+      <h1 class="hero-title">MDHero</h1>
+      <p class="hero-desc">A native Markdown reader and editor.</p>
+    </div>
   </div>
 
   <!-- Update banner (renders nothing when no update available or dismissed) -->
   <UpdateBanner />
 
+  <!-- Shared list row: icon tile + two-line name/path + time -->
+  {#snippet fileRow(name: string, path: string, time: string, onClick: () => void, variant: 'file' | 'plan')}
+    <button class="item" onclick={onClick}>
+      <div class="item-icon {variant}">
+        {#if variant === 'plan'}
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><rect x="2" y="1" width="10" height="12" rx="1.5"/><polyline points="5,5 6.5,6.5 9,4"/><line x1="4.5" y1="8.5" x2="9.5" y2="8.5"/><line x1="4.5" y1="10.5" x2="8" y2="10.5"/></svg>
+        {:else}
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><rect x="2" y="1" width="10" height="12" rx="1.5"/><line x1="4.5" y1="4" x2="9.5" y2="4"/><line x1="4.5" y1="6.5" x2="8" y2="6.5"/><line x1="4.5" y1="9" x2="9" y2="9"/></svg>
+        {/if}
+      </div>
+      <div class="item-info">
+        <span class="item-name">{name}</span>
+        {#if path}<span class="item-path">{path}</span>{/if}
+      </div>
+      <span class="item-time">{time}</span>
+    </button>
+  {/snippet}
+
   <!-- Quick actions -->
   <div class="quick-actions">
-    <button class="qa-btn" onclick={openFileDialog}>
+    <button class="qa-btn qa-primary" onclick={openFileDialog}>
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l3-2.5h9v10H1.5V5z"/><line x1="1.5" y1="5" x2="4.5" y2="5"/></svg>
       Browse Files
     </button>
@@ -133,28 +154,34 @@
     </button>
   </div>
 
-  <!-- Recent files -->
-  {#if $recentFiles.length > 0}
-    <div class="section">
+  <!-- Recents section (reused: standalone 2-col, or as one grid cell) -->
+  {#snippet recentsSection(twoCol: boolean)}
+    <div class="section recents-section">
       <div class="section-header">
         <h2 class="section-title">Recent Files</h2>
         <button class="section-action" onclick={() => { clearRecentFiles(); }}>Clear</button>
       </div>
-      <div class="card card-scroll card-scroll-8">
-        {#each $recentFiles as file (file.path)}
-          <button class="item" onclick={() => openFile(file.path)}>
-            <span class="item-name">{file.name}</span>
-            <span class="item-path">{shortenPath(file.path)}</span>
-            <span class="item-time">{formatTime(file.openedAt)}</span>
-          </button>
-        {/each}
+      <div class="card card-scroll uniform-card">
+        <div class="recents-grid" class:two-col={twoCol}>
+          {#each $recentFiles as file (file.path)}
+            {@render fileRow(file.name, shortenPath(file.path), formatTime(file.openedAt), () => openFile(file.path), 'file')}
+          {/each}
+        </div>
       </div>
     </div>
+  {/snippet}
+
+  <!-- No folders pinned: recents owns the width in 2 columns -->
+  {#if $recentFiles.length > 0 && $pinnedFolders.length === 0}
+    {@render recentsSection(true)}
   {/if}
 
-  <!-- Plans + Pinned folders grid -->
+  <!-- Uniform card grid: recents (single-col) + plans + folders, all equal cells -->
   {#if (plans.length > 0 && !plansHidden) || $pinnedFolders.length > 0}
     <div class="panels-grid">
+      {#if $recentFiles.length > 0 && $pinnedFolders.length > 0}
+        {@render recentsSection(false)}
+      {/if}
       {#if plans.length > 0 && !plansHidden}
         <div class="section">
           <div class="section-header">
@@ -167,13 +194,9 @@
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/></svg>
             </button>
           </div>
-          <div class="card card-scroll card-scroll-5">
+          <div class="card card-scroll uniform-card">
             {#each plans as plan (plan.path)}
-              <button class="item" onclick={() => openFile(plan.path)}>
-                <span class="item-name">{formatPlanName(plan.name)}</span>
-                <span class="item-path">{shortenPath(plan.path)}</span>
-                <span class="item-time">{formatTime(plan.modified)}</span>
-              </button>
+              {@render fileRow(formatPlanName(plan.name), shortenPath(plan.path), formatTime(plan.modified), () => openFile(plan.path), 'plan')}
             {/each}
           </div>
         </div>
@@ -191,18 +214,14 @@
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2" y1="2" x2="8" y2="8"/><line x1="8" y1="2" x2="2" y2="8"/></svg>
             </button>
           </div>
-          <div class="card card-scroll card-scroll-5">
+          <div class="card card-scroll uniform-card">
             {#if !folderFiles[folder]}
               <div class="card-empty">Loading...</div>
             {:else if folderFiles[folder].length === 0}
               <div class="card-empty">No markdown files</div>
             {:else}
               {#each folderFiles[folder] as file (file.path)}
-                <button class="item" onclick={() => openFile(file.path)}>
-                  <span class="item-name">{file.name}</span>
-                  <span class="item-path">{file.rel_path !== file.name ? file.rel_path : ''}</span>
-                  <span class="item-time">{formatTime(file.modified)}</span>
-                </button>
+                {@render fileRow(file.name, file.rel_path !== file.name ? file.rel_path : '', formatTime(file.modified), () => openFile(file.path), 'file')}
               {/each}
             {/if}
           </div>
@@ -236,7 +255,7 @@
     display: flex;
     flex-direction: column;
     padding: 24px 32px;
-    max-width: 740px;
+    max-width: 1040px;
     margin: 0 auto;
     min-height: calc(100vh - 80px);
     gap: 16px;
@@ -245,24 +264,30 @@
   /* Hero bar */
   .hero-bar {
     display: flex;
-    align-items: baseline;
-    gap: 8px;
-    padding-bottom: 4px;
+    align-items: center;
+    gap: 14px;
+    padding: 4px 0 8px;
+  }
+
+  .hero-logo {
+    flex-shrink: 0;
+    border-radius: 10px;
+  }
+
+  .hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
 
   .hero-title {
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
     color: #1c1c1e;
     margin: 0;
   }
   :global(html.dark) .hero-title { color: #e5e5e7; }
-
-  .hero-sep {
-    color: #d1d1d6;
-    font-size: 14px;
-  }
-  :global(html.dark) .hero-sep { color: #3a3a3c; }
 
   .hero-desc {
     font-size: 13px;
@@ -307,6 +332,20 @@
     background: #2c2c2e;
     border-color: #3a3a3c;
     color: #e5e5e7;
+  }
+
+  .qa-primary,
+  :global(html.dark) .qa-primary {
+    background: #0891B2;
+    border-color: #0891B2;
+    color: white;
+  }
+
+  .qa-primary:hover,
+  :global(html.dark) .qa-primary:hover {
+    background: #0E7490;
+    border-color: #0E7490;
+    color: white;
   }
 
   /* Sections */
@@ -414,14 +453,23 @@
     overflow-y: auto;
   }
 
-  /* 8 items visible: ~33px per item */
-  .card-scroll-8 {
-    max-height: 264px;
-  }
+  /* Every card in the grid is the same fixed height and scrolls internally */
+  .uniform-card { height: 300px; }
 
-  /* 5 items visible */
-  .card-scroll-5 {
-    max-height: 165px;
+  /* 2 columns when no folders are pinned; row-flow so it scrolls vertically */
+  .recents-grid.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .recents-grid.two-col .item:nth-child(even) {
+    border-left: 1px solid #f2f2f7;
+  }
+  :global(html.dark) .recents-grid.two-col .item:nth-child(even) {
+    border-left-color: #2c2c2e;
+  }
+  @media (max-width: 720px) {
+    .recents-grid.two-col { grid-template-columns: 1fr; }
+    .recents-grid.two-col .item:nth-child(even) { border-left: none; }
   }
 
   .card-empty {
@@ -431,13 +479,13 @@
     text-align: center;
   }
 
-  /* List items */
+  /* List items — icon tile + two-line name/path + time */
   .item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
-    padding: 7px 12px;
+    padding: 8px 12px;
     background: none;
     border: none;
     border-bottom: 1px solid #f2f2f7;
@@ -453,10 +501,35 @@
   .item:hover { background: #f2f2f7; }
   :global(html.dark) .item:hover { background: #2c2c2e; }
 
-  .item-name {
-    font-size: 12px;
-    color: #1c1c1e;
+
+  .item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #E5F5F8;
+    color: #0891B2;
+    flex-shrink: 0;
+  }
+  :global(html.dark) .item-icon { background: #0A1E2E; color: #22D3EE; }
+
+  .item-icon.plan { background: #e3f8e8; color: #34a853; }
+  :global(html.dark) .item-icon.plan { background: #1a3a1f; color: #4ade80; }
+
+  .item-info {
     flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .item-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #1c1c1e;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -464,29 +537,30 @@
   :global(html.dark) .item-name { color: #e5e5e7; }
 
   .item-path {
-    font-size: 10px;
-    color: #8e8e93;
+    font-size: 11px;
+    color: #aeaeb2;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 200px;
-    flex-shrink: 1;
   }
   :global(html.dark) .item-path { color: #636366; }
 
   .item-time {
-    font-size: 10px;
-    color: #aeaeb2;
+    font-size: 11px;
+    color: #c7c7cc;
     white-space: nowrap;
     flex-shrink: 0;
   }
-  :global(html.dark) .item-time { color: #636366; }
+  :global(html.dark) .item-time { color: #48484a; }
 
-  /* Panels grid — plans + folders side by side */
+  /* Panels grid — recents + plans + folders, 2 columns max */
   .panels-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
+  }
+  @media (max-width: 720px) {
+    .panels-grid { grid-template-columns: 1fr; }
   }
 
   /* Footer */

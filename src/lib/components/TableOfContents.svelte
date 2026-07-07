@@ -105,14 +105,14 @@
     border-left-color: #0891B2;
     border-left-width: 3px;
     font-weight: 500;
-    background: rgba(88, 86, 214, 0.06);
+    background: rgba(8, 145, 178, 0.06);
     border-radius: 0 4px 4px 0;
   }
 
   :global(html.dark) .toc-item.active {
     color: #22D3EE;
     border-left-color: #22D3EE;
-    background: rgba(136, 134, 229, 0.1);
+    background: rgba(34, 211, 238, 0.08);
   }
 
   @media print {

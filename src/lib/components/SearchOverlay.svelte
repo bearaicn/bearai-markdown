@@ -1,49 +1,67 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import Mark from "mark.js";
+  import {
+    searchQuery,
+    searchActiveIndex,
+    searchTotal,
+    resetSearch,
+  } from "$lib/stores/search";
+  import { cycleIndex } from "$lib/utils/text-search";
 
   let { visible = $bindable(false) }: { visible: boolean } = $props();
 
-  let query = $state("");
-  let currentMatch = $state(0);
-  let totalMatches = $state(0);
   let inputEl: HTMLInputElement | undefined = $state();
   let markInstance: Mark | null = null;
+  let markTarget: HTMLElement | null = null;
 
-  function getArticle(): HTMLElement | null {
-    return document.querySelector("article.prose");
+  /**
+   * The DOM element to highlight in non-edit modes: the rendered Markdown
+   * (`article.prose`) or the raw-source `<pre>`. In edit mode neither exists —
+   * the document is a `<textarea>` whose contents aren't markable DOM text, so
+   * the Editor component renders its own highlight backdrop instead.
+   */
+  function getViewTarget(): HTMLElement | null {
+    return document.querySelector<HTMLElement>("article.prose, pre.raw-source");
+  }
+
+  function clearMarks() {
+    markInstance?.unmark();
+    markInstance = null;
+    markTarget = null;
   }
 
   function doSearch() {
-    const article = getArticle();
-    if (!article) return;
+    const target = getViewTarget();
+    if (!target) return; // edit mode: the Editor backdrop owns highlighting
 
-    if (!markInstance) {
-      markInstance = new Mark(article);
+    if (markTarget !== target) {
+      markInstance?.unmark();
+      markInstance = new Mark(target);
+      markTarget = target;
     }
+    const instance = markInstance!;
 
-    markInstance.unmark({
+    instance.unmark({
       done: () => {
-        if (!query.trim()) {
-          totalMatches = 0;
-          currentMatch = 0;
+        if (!$searchQuery.trim()) {
+          searchTotal.set(0);
+          searchActiveIndex.set(0);
           return;
         }
-
-        markInstance!.mark(query, {
+        instance.mark($searchQuery, {
           separateWordSearch: false,
           className: "mdv-search-highlight",
           done: (count) => {
-            totalMatches = count;
-            currentMatch = count > 0 ? 1 : 0;
-            if (count > 0) scrollToMatch(0);
+            searchTotal.set(count);
+            searchActiveIndex.set(0);
+            if (count > 0) scrollToViewMatch(0);
           },
         });
       },
     });
   }
 
-  function scrollToMatch(index: number) {
+  function scrollToViewMatch(index: number) {
     const marks = document.querySelectorAll("mark.mdv-search-highlight");
     if (marks.length === 0) return;
     marks.forEach((m) => m.classList.remove("mdv-search-active"));
@@ -55,24 +73,19 @@
   }
 
   function nextMatch() {
-    if (totalMatches === 0) return;
-    currentMatch = (currentMatch % totalMatches) + 1;
-    scrollToMatch(currentMatch - 1);
+    if ($searchTotal === 0) return;
+    searchActiveIndex.set(cycleIndex($searchActiveIndex, $searchTotal, 1));
   }
 
   function prevMatch() {
-    if (totalMatches === 0) return;
-    currentMatch = currentMatch <= 1 ? totalMatches : currentMatch - 1;
-    scrollToMatch(currentMatch - 1);
+    if ($searchTotal === 0) return;
+    searchActiveIndex.set(cycleIndex($searchActiveIndex, $searchTotal, -1));
   }
 
   function close() {
     visible = false;
-    query = "";
-    totalMatches = 0;
-    currentMatch = 0;
-    markInstance?.unmark();
-    markInstance = null;
+    clearMarks();
+    resetSearch();
   }
 
   function handleKeydown(e: KeyboardEvent) {
@@ -80,6 +93,7 @@
       e.stopPropagation();
       close();
     } else if (e.key === "Enter") {
+      e.preventDefault();
       if (e.shiftKey) {
         prevMatch();
       } else {
@@ -88,18 +102,33 @@
     }
   }
 
+  // Focus the input when shown; clear marks + reset state when hidden (covers
+  // close button, Esc, the Find menu toggle, and view-mode switches).
   $effect(() => {
-    if (visible && inputEl) {
-      inputEl.focus();
-      inputEl.select();
+    if (visible) {
+      inputEl?.focus();
+      inputEl?.select();
+    } else {
+      clearMarks();
+      resetSearch();
     }
   });
 
+  // Reset to the first match and re-run view-mode highlighting whenever the
+  // query changes while visible. Edit mode is handled reactively by the Editor
+  // backdrop, which reads the same query/active-index store.
   $effect(() => {
-    query;
-    if (visible) {
-      doSearch();
-    }
+    $searchQuery; // track
+    if (!visible) return;
+    searchActiveIndex.set(0);
+    doSearch();
+  });
+
+  // Move the highlighted/scrolled match when the active index changes (view
+  // mode only; the Editor handles scrolling its own active match).
+  $effect(() => {
+    const idx = $searchActiveIndex;
+    if (visible && getViewTarget()) scrollToViewMatch(idx);
   });
 </script>
 
@@ -112,25 +141,25 @@
 
     <input
       bind:this={inputEl}
-      bind:value={query}
+      bind:value={$searchQuery}
       type="text"
       placeholder="Find in document..."
       class="search-input"
     />
 
     <span class="search-count">
-      {#if totalMatches > 0}
-        {currentMatch}/{totalMatches}
-      {:else if query.trim()}
+      {#if $searchTotal > 0}
+        {$searchActiveIndex + 1}/{$searchTotal}
+      {:else if $searchQuery.trim()}
         0
       {/if}
     </span>
 
     <div class="search-nav">
-      <button onclick={prevMatch} disabled={totalMatches === 0} class="search-nav-btn" title="Previous (Shift+Enter)">
+      <button onclick={prevMatch} disabled={$searchTotal === 0} class="search-nav-btn" title="Previous (Shift+Enter)">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="2,8 6,4 10,8"/></svg>
       </button>
-      <button onclick={nextMatch} disabled={totalMatches === 0} class="search-nav-btn" title="Next (Enter)">
+      <button onclick={nextMatch} disabled={$searchTotal === 0} class="search-nav-btn" title="Next (Enter)">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="2,4 6,8 10,4"/></svg>
       </button>
     </div>

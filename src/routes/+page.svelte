@@ -598,15 +598,24 @@
       return;
     }
 
-    // Cmd+Shift+[ / Cmd+Shift+] cycle tabs (standard macOS convention).
+    // macOS: Cmd+Shift+[ / Cmd+Shift+] cycle tabs (standard macOS convention).
     // Use e.code because Shift turns "["/"]" into "{"/"}" in e.key.
     if (
-      (e.metaKey || e.ctrlKey)
+      e.metaKey
       && e.shiftKey
       && (e.code === "BracketLeft" || e.code === "BracketRight")
     ) {
       e.preventDefault();
       cycleTab(e.code === "BracketRight" ? 1 : -1);
+      return;
+    }
+
+    // Windows/Linux: Ctrl+Tab / Ctrl+Shift+Tab (browser convention),
+    // and Ctrl+PageDown / Ctrl+PageUp (VS Code convention, also in Chrome).
+    if (e.ctrlKey && (e.key === "Tab" || e.code === "PageUp" || e.code === "PageDown")) {
+      e.preventDefault();
+      const forward = e.key === "Tab" ? !e.shiftKey : e.code === "PageDown";
+      cycleTab(forward ? 1 : -1);
       return;
     }
 

@@ -577,6 +577,22 @@
     }
   }
 
+  // Move the active tab by `delta` positions through the visible tab order
+  // ([Home, ...file tabs]), wrapping around at both ends.
+  function cycleTab(delta: number) {
+    const order = [HOME_TAB_ID, ...$tabs.map((t) => t.id)];
+    if (order.length <= 1) return;
+    const current = order.indexOf($activeTabId ?? HOME_TAB_ID);
+    const base = current === -1 ? 0 : current;
+    const next = (base + delta + order.length) % order.length;
+    const nextId = order[next];
+    if (nextId === HOME_TAB_ID) {
+      tabStore.goHome();
+    } else {
+      tabStore.switchTab(nextId);
+    }
+  }
+
   function handleKeydown(e: KeyboardEvent) {
     // Cmd+1-9 tab switching
     if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "9") {
@@ -585,6 +601,27 @@
       if ($tabs[idx]) {
         tabStore.switchTab($tabs[idx].id);
       }
+      return;
+    }
+
+    // macOS: Cmd+Shift+[ / Cmd+Shift+] cycle tabs (standard macOS convention).
+    // Use e.code because Shift turns "["/"]" into "{"/"}" in e.key.
+    if (
+      e.metaKey
+      && e.shiftKey
+      && (e.code === "BracketLeft" || e.code === "BracketRight")
+    ) {
+      e.preventDefault();
+      cycleTab(e.code === "BracketRight" ? 1 : -1);
+      return;
+    }
+
+    // Windows/Linux: Ctrl+Tab / Ctrl+Shift+Tab (browser convention),
+    // and Ctrl+PageDown / Ctrl+PageUp (VS Code convention, also in Chrome).
+    if (e.ctrlKey && (e.key === "Tab" || e.code === "PageUp" || e.code === "PageDown")) {
+      e.preventDefault();
+      const forward = e.key === "Tab" ? !e.shiftKey : e.code === "PageDown";
+      cycleTab(forward ? 1 : -1);
       return;
     }
 

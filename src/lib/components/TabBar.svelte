@@ -16,7 +16,26 @@
     onCloseTab(id);
   }
 
+  // Middle-click anywhere on a tab closes it, matching browsers/VS Code (#46).
+  // auxclick fires exactly once per non-primary click (unlike raw mousedown,
+  // which mis-fires during the row re-render). Routes through onCloseTab so the
+  // same unsaved-changes handling applies as the X button.
+  function handleAuxClick(e: MouseEvent, id: string) {
+    if (e.button !== 1) return;
+    e.preventDefault();
+    onCloseTab(id);
+  }
+
   function handleMouseDown(e: MouseEvent, idx: number) {
+    // Suppress the middle-button default (autoscroll) so the tab close on
+    // auxclick fires cleanly on the first click (#46) — but don't close here;
+    // closing on mousedown mis-fires as the row re-renders. Don't start a drag.
+    if (e.button === 1) {
+      e.preventDefault();
+      return;
+    }
+    // Only the left button starts a drag.
+    if (e.button !== 0) return;
     if ((e.target as HTMLElement).closest(".tab-close")) return;
     e.preventDefault();
     dragIndex = idx;
@@ -77,6 +96,7 @@
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           onmousedown={(e) => handleMouseDown(e, idx)}
+          onauxclick={(e) => handleAuxClick(e, tab.id)}
           onclick={() => tabStore.switchTab(tab.id)}
           class="tab"
           class:active={$activeTabId === tab.id}

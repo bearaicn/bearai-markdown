@@ -5,6 +5,16 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Tailwind Typography wraps blockquote paragraphs in “ ” quote glyphs by
+   default. Drop them: they aren't in the source markdown, and `>` is used for
+   callouts/notes/alerts as often as quotations, where quote marks mislead (#45).
+   Kept global (not in a scoped Svelte block) so it targets the pseudo-elements
+   without scoping quirks, and its higher specificity beats the plugin's rule. */
+.prose blockquote p:first-of-type::before,
+.prose blockquote p:last-of-type::after {
+  content: none;
+}
+
 :root {
   --md-max-width: 720px;
   --md-font-size: 17px;

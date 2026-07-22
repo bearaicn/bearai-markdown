@@ -343,10 +343,26 @@
     switchMode(rawMode ? "viewer" : "raw");
   }
 
-  function handleCloseTab(id: string): boolean {
+  async function handleCloseTab(id: string): Promise<boolean> {
     const t = $tabs.find((x) => x.id === id);
     if (!t) return false;
-    if (t.dirty && !confirm(`Discard unsaved changes to ${t.fileName}?`)) return false;
+    // Native dialog via the plugin — window.confirm() is a no-op in the Tauri
+    // WKWebView (silently returns false), which made this guard dead and closed
+    // dirty tabs without warning.
+    if (t.dirty) {
+      const { ask } = await import("@tauri-apps/plugin-dialog");
+      // The primary/default button (Enter) must be the SAFE action, so a
+      // reflexive Return can't destroy unsaved work. `ask`'s OK button is the
+      // default, so OK = "Keep Editing" and the cancel-position button is the
+      // deliberate, non-default "Discard".
+      const keepEditing = await ask(`You have unsaved changes to ${t.fileName}.`, {
+        title: "Unsaved changes",
+        kind: "warning",
+        okLabel: "Keep Editing",
+        cancelLabel: "Discard",
+      });
+      if (keepEditing) return false;
+    }
     // Flush reading progress before closing — catches the case where user
     // scrolls and closes within the 500ms debounce window
     if (t.id === $activeTabId) {
@@ -354,6 +370,23 @@
     }
     tabStore.closeTab(id);
     return true;
+  }
+
+  // Close-on-ESC: close the active file tab, and quit the app if it was the last
+  // one (on macOS closing the window alone leaves the app in the dock). Async
+  // because the dirty-confirm dialog is — a cancelled discard must not quit.
+  async function closeActiveTabOnEscape() {
+    const tabsBeforeClose = $tabs.length;
+    if (activeTab && activeTab.id !== HOME_TAB_ID) {
+      const closed = await handleCloseTab(activeTab.id);
+      if (closed && tabsBeforeClose === 1) {
+        invoke("quit_app").catch(() => {});
+      }
+    } else if (tabsBeforeClose === 0) {
+      // Active is home tab and no file tabs are open → quit
+      invoke("quit_app").catch(() => {});
+    }
+    // Else: home tab is active with file tabs in background — do nothing.
   }
 
   onMount(() => {
@@ -689,7 +722,7 @@
       e.preventDefault();
       const t = tabStore.getActiveTab();
       if (!t) return;
-      handleCloseTab(t.id);
+      void handleCloseTab(t.id);
       return;
     }
     if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "f") {
@@ -711,22 +744,9 @@
       // Close-on-ESC: opt-in setting. Ignore in edit mode and when an input is focused
       // (so users typing in search/paste/etc. don't accidentally trigger it).
       if ($settings.closeOnEscape && !activeTab?.isEditing && !isInputFocused()) {
-        const tabsBeforeClose = $tabs.length;
-
-        if (activeTab && activeTab.id !== HOME_TAB_ID) {
-          // Close the current file tab (handleCloseTab manages the dirty prompt)
-          const closed = handleCloseTab(activeTab.id);
-          // If that was the last file tab, quit the app entirely.
-          // On macOS this is required — closing the window leaves the app in the dock.
-          if (closed && tabsBeforeClose === 1) {
-            invoke("quit_app").catch(() => {});
-          }
-        } else if (tabsBeforeClose === 0) {
-          // Active is home tab and no file tabs are open → quit
-          invoke("quit_app").catch(() => {});
-        }
-        // Else: home tab is active with file tabs in background — do nothing
-        // (don't nuke the user's session just because they happened to be on home)
+        // handleCloseTab is async (native dirty-confirm dialog), so the
+        // quit-on-last-tab decision runs in an async helper.
+        closeActiveTabOnEscape();
       }
       return;
     }

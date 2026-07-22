@@ -17,12 +17,14 @@
   }
 
   // Middle-click anywhere on a tab closes it, matching browsers/VS Code (#46).
-  // auxclick fires exactly once per non-primary click (unlike raw mousedown,
-  // which mis-fires during the row re-render). Routes through onCloseTab so the
-  // same unsaved-changes handling applies as the X button.
+  // Only clean tabs: a dirty tab needs the unsaved-changes dialog, and opening
+  // that native modal from an auxclick handler wedges it in WKWebView (the modal
+  // becomes unresponsive). So middle-click skips dirty tabs — the X button (a
+  // plain click) still closes them with the prompt.
   function handleAuxClick(e: MouseEvent, id: string) {
     if (e.button !== 1) return;
     e.preventDefault();
+    if ($tabs.find((t) => t.id === id)?.dirty) return;
     onCloseTab(id);
   }
 

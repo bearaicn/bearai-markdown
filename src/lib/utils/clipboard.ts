@@ -56,3 +56,15 @@ export async function copyAsMarkdown(markdown: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Copy a file's absolute path to clipboard.
+ */
+export async function copyPath(path: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(path);
+    return true;
+  } catch {
+    return false;
+  }
+}

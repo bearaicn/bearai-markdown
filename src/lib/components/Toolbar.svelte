@@ -20,6 +20,9 @@
     onEditToggle = () => {},
     onSave = () => {},
     onOpenSettings = () => {},
+    canPresent = false,
+    presenting = false,
+    onTogglePresent = () => {},
   }: {
     onPaste?: () => void;
     onOpen?: () => void;
@@ -32,6 +35,9 @@
     onEditToggle?: () => void;
     onSave?: () => void;
     onOpenSettings?: () => void;
+    canPresent?: boolean;
+    presenting?: boolean;
+    onTogglePresent?: () => void;
   } = $props();
 
   let currentHeading = $derived(
@@ -199,6 +205,22 @@
         <line x1="9" y1="3" x2="7" y2="13"/>
       </svg>
     </button>
+
+    {#if canPresent}
+      <button
+        onclick={onTogglePresent}
+        class="btn btn-icon"
+        class:active={presenting}
+        title={presenting ? 'Exit presentation (Esc)' : 'Present slideshow'}
+        aria-label={presenting ? 'Exit presentation' : 'Present slideshow'}
+      >
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1.5" y="2.5" width="13" height="9" rx="1"/>
+          <line x1="6" y1="14" x2="10" y2="14"/>
+          <line x1="8" y1="11.5" x2="8" y2="14"/>
+        </svg>
+      </button>
+    {/if}
 
     <div class="separator"></div>
 

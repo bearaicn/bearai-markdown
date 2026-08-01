@@ -2,7 +2,7 @@
   import { onMount, tick } from "svelte";
   import { document as docStore } from "$lib/stores/document";
   import { tabStore, HOME_TAB_ID, type Tab } from "$lib/stores/tabs";
-  import { initRenderer, renderFull, resolveLocalPath } from "$lib/renderer/pipeline";
+  import { initRenderer, renderFull, resolveLocalPath, isMarpDoc } from "$lib/renderer/pipeline";
   import {
     allowAssets,
     getBaseDir,
@@ -40,6 +40,7 @@
   import UpdateToast from "$lib/components/UpdateToast.svelte";
   import Toast from "$lib/components/Toast.svelte";
   import Editor from "$lib/components/Editor.svelte";
+  import PresentationView from "$lib/components/PresentationView.svelte";
   import { updateScrollPercent } from "$lib/stores/recents";
   import { checkForUpdates, updateAvailable, updateDismissed, checkInFlight } from "$lib/stores/updater";
   import { get } from "svelte/store";
@@ -58,6 +59,7 @@
   let customPromptSelection = $state("");
   let zenMode = $state(false);
   let rawMode = $state(false);
+  let presenting = $state(false);
   let contentMaxWidth = $derived(getContentMaxWidth($settings));
 
   // Lightbox state
@@ -164,6 +166,22 @@
     activeTab?.isEditing ? "editor" : rawMode ? "raw" : "viewer"
   );
 
+  // Marp presentation (#44). `presenting` is a page-level view mode (like rawMode);
+  // it's only meaningful when the active doc is a Marp deck.
+  let activeIsMarp = $derived(isMarpDoc($docStore.frontmatter));
+  let activePaginate = $derived(
+    $docStore.frontmatter?.paginate === true || $docStore.frontmatter?.paginate === "true"
+  );
+
+  function togglePresent() {
+    presenting = !presenting;
+    if (presenting) {
+      // Entering the slideshow supersedes raw/edit.
+      rawMode = false;
+      if (activeTab?.isEditing) tabStore.setEditing(activeTab.id, false);
+    }
+  }
+
   /**
    * Switch view mode while preserving the source-line position so the user
    * stays anchored at the same place in the document.
@@ -171,6 +189,9 @@
   function switchMode(target: ViewMode) {
     if (!activeTab || target === currentMode) return;
     if (target === "editor" && !canEditActive) return;
+
+    // An explicit mode switch (raw/edit) leaves the slideshow (#44).
+    presenting = false;
 
     // Close the find overlay on any mode change so a search started against one
     // target (viewer/raw/editor) can't leave a stale match count or highlights
@@ -764,6 +785,9 @@
     if (e.key === "Escape") {
       if (zenMode) { zenMode = false; return; }
 
+      // Exit the Marp slideshow before any modal/close-tab handling (#44).
+      if (presenting) { presenting = false; return; }
+
       // Modals/overlays consume ESC first. Inner handlers stopPropagation when focus
       // is inside them; this guard covers the focus-outside case (modal visible but
       // user clicked elsewhere) so we don't nuke the tab while a modal is still up.
@@ -879,6 +903,7 @@
 
     if (!id || id === HOME_TAB_ID) {
       rawMode = false;
+      presenting = false;
       docStore.set({
         filePath: null,
         fileName: null,
@@ -908,6 +933,10 @@
       loading: false,
       error: null,
     });
+
+    // Auto-present a Marp deck on activation when the setting is on and we're not
+    // mid-edit (#44). Runs once per tab switch, so an explicit exit (Esc) sticks.
+    presenting = isMarpDoc(tab.frontmatter) && get(settings).autoPresentMarp && !tab.isEditing;
 
     getCurrentWindow().setTitle(`${tab.fileName} — MDHero`).catch(() => {});
 
@@ -949,6 +978,9 @@
       onEditToggle={handleEditToggle}
       onSave={() => activeTab && handleSave(activeTab)}
       onOpenSettings={() => (settingsVisible = true)}
+      canPresent={activeIsMarp}
+      presenting={presenting}
+      onTogglePresent={togglePresent}
     />
     <TabBar onCloseTab={handleCloseTab} />
   {/if}
@@ -982,7 +1014,15 @@
     <!-- Gate on filePath, not renderedHtml: an empty file renders to empty HTML,
          and gating on that dropped the user back to the home/recents view with no
          way to edit (#52). A real (even empty) file tab always shows here. -->
-    {#if activeTab?.isEditing}
+    {#if presenting && activeIsMarp}
+      <PresentationView
+        content={$docStore.content}
+        baseDir={activeTab ? getBaseDir(activeTab.filePath) : ""}
+        paginate={activePaginate}
+        onExit={() => (presenting = false)}
+        onLocalLink={handleLocalLink}
+      />
+    {:else if activeTab?.isEditing}
       <Editor
         value={activeTab.editContent}
         onChange={(v) => tabStore.updateEditContent(activeTab!.id, v)}
@@ -1008,7 +1048,7 @@
         />
       </main>
     {/if}
-    {#if !zenMode && !activeTab?.isEditing}
+    {#if !zenMode && !activeTab?.isEditing && !presenting}
       <StatusBar />
       <ScrollToTop />
     {/if}

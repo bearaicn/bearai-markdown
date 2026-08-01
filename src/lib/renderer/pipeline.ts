@@ -72,6 +72,31 @@ export interface RenderResult {
    * are otherwise refused (issue #31).
    */
   assetPaths: string[];
+  /** True when the frontmatter declares `marp: true` — a Marp slide deck (#44). */
+  isMarp: boolean;
+}
+
+/**
+ * Whether a parsed frontmatter block marks the document as a Marp deck. The
+ * naive frontmatter parser stores values as strings, so `marp: true` arrives as
+ * the string `"true"`; accept both that and a real boolean.
+ */
+export function isMarpDoc(frontmatter: Record<string, unknown> | null): boolean {
+  const v = frontmatter?.marp;
+  return v === true || v === "true";
+}
+
+/** Matches a leading `---\n…\n---\n` frontmatter block (same shape renderFull strips). */
+const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
+
+/**
+ * Return the markdown body with any leading YAML-ish frontmatter block removed.
+ * `renderFull` strips frontmatter internally, but the stored document content
+ * keeps it — Marp slide splitting needs the body without it (#44).
+ */
+export function stripFrontmatter(markdown: string): string {
+  const m = markdown.match(FRONTMATTER_RE);
+  return m ? m[2] : markdown;
 }
 
 let md: MarkdownIt | null = null;
@@ -219,7 +244,7 @@ export function renderFull(markdown: string, baseDir?: string): RenderResult {
     html = resolveRelativeImages(html, baseDir, assetPaths);
   }
 
-  return { html, frontmatter, wordCount, assetPaths };
+  return { html, frontmatter, wordCount, assetPaths, isMarp: isMarpDoc(frontmatter) };
 }
 
 function resolveRelativeImages(html: string, baseDir: string, collected: string[]): string {

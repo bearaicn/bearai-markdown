@@ -8,6 +8,8 @@ export interface ReaderSettings {
   widthMode: "comfortable" | "wide";
   closeOnEscape: boolean;
   showLineNumbers: boolean;
+  /** Auto-open `marp: true` documents as a slideshow (#44). */
+  autoPresentMarp: boolean;
 }
 
 const STORAGE_KEY = "mdhero-settings";
@@ -29,6 +31,7 @@ function loadSettings(): ReaderSettings {
     widthMode: "comfortable",
     closeOnEscape: true,
     showLineNumbers: true,
+    autoPresentMarp: true,
   };
 
   if (typeof localStorage === "undefined") return defaults;

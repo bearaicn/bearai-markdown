@@ -44,6 +44,19 @@
               class="setting-switch"
             />
           </label>
+
+          <label class="setting-row">
+            <div class="setting-text">
+              <span class="setting-label">Auto-present Marp decks</span>
+              <span class="setting-hint">Open documents with <code>marp: true</code> frontmatter as a slideshow.</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={$settings.autoPresentMarp}
+              onchange={(e) => settings.update((s) => ({ ...s, autoPresentMarp: e.currentTarget.checked }))}
+              class="setting-switch"
+            />
+          </label>
         </section>
 
         <section class="settings-section">

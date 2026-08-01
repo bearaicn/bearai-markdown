@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { tabStore, HOME_TAB_ID } from "$lib/stores/tabs";
+  import { tabStore, HOME_TAB_ID, type Tab } from "$lib/stores/tabs";
+  import { copyPath } from "$lib/utils/clipboard";
 
   let {
     onCloseTab = (id: string) => tabStore.closeTab(id),
@@ -10,6 +11,9 @@
   const { tabs, activeTabId } = tabStore;
   let dragIndex = $state(-1);
   let overIndex = $state(-1);
+  let contextMenuTab = $state<Tab | null>(null);
+  let contextMenuPos = $state({ x: 0, y: 0 });
+  let copyFeedback = $state("");
 
   function handleClose(e: MouseEvent, id: string) {
     e.stopPropagation();
@@ -38,7 +42,7 @@
     }
     // Only the left button starts a drag.
     if (e.button !== 0) return;
-    if ((e.target as HTMLElement).closest(".tab-close")) return;
+    if ((e.target as HTMLElement).closest(".tab-close") || (e.target as HTMLElement).closest(".dropdown")) return;
     e.preventDefault();
     dragIndex = idx;
 
@@ -74,6 +78,34 @@
   function handleNewTab() {
     tabStore.goHome();
   }
+
+  // A tab backed by a real file has a canonical absolute path to copy; paste://
+  // and url:// tabs don't (mirrors +page.svelte's canEditActive gate).
+  function isFileTab(tab: Tab): boolean {
+    return !!tab.filePath && !tab.filePath.startsWith("paste://") && !tab.filePath.startsWith("url://");
+  }
+
+  function handleContextMenu(e: MouseEvent, tab: Tab) {
+    if (!isFileTab(tab)) return;
+    e.preventDefault();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const menuWidth = 160;
+    contextMenuPos = { x: Math.min(rect.left, window.innerWidth - menuWidth - 8), y: rect.bottom + 4 };
+    contextMenuTab = tab;
+    copyFeedback = "";
+  }
+
+  function closeContextMenu() {
+    contextMenuTab = null;
+    copyFeedback = "";
+  }
+
+  async function handleCopyPath() {
+    if (!contextMenuTab) return;
+    const success = await copyPath(contextMenuTab.filePath);
+    copyFeedback = success ? "Copied!" : "Failed";
+    setTimeout(closeContextMenu, 900);
+  }
 </script>
 
 <div class="tabbar">
@@ -100,6 +132,7 @@
           onmousedown={(e) => handleMouseDown(e, idx)}
           onauxclick={(e) => handleAuxClick(e, tab.id)}
           onclick={() => tabStore.switchTab(tab.id)}
+          oncontextmenu={(e) => handleContextMenu(e, tab)}
           class="tab"
           class:active={$activeTabId === tab.id}
           class:drag-over={overIndex === idx && dragIndex !== idx && dragIndex >= 0}
@@ -130,6 +163,16 @@
     </button>
   </div>
 </div>
+
+{#if contextMenuTab}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="fixed inset-0 z-[9]" onclick={closeContextMenu} onkeydown={() => {}}></div>
+  <div class="dropdown" style="left: {contextMenuPos.x}px; top: {contextMenuPos.y}px;">
+    <button onclick={handleCopyPath} class="dropdown-item">
+      <span>{copyFeedback || "Copy Path"}</span>
+    </button>
+  </div>
+{/if}
 
 <style>
   .tabbar {
@@ -297,6 +340,50 @@
   :global(html.dark) .new-tab-btn:hover {
     background: rgba(255, 255, 255, 0.08);
     color: #22D3EE;
+  }
+
+  .dropdown {
+    position: fixed;
+    width: 160px;
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06);
+    z-index: 50;
+    padding: 4px;
+    overflow: hidden;
+  }
+
+  :global(html.dark) .dropdown {
+    background: #2c2c2e;
+    border-color: #3a3a3c;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 7px 10px;
+    font-size: 12px;
+    color: #1c1c1e;
+    background: none;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  :global(html.dark) .dropdown-item {
+    color: #e5e5e7;
+  }
+
+  .dropdown-item:hover {
+    background: #f2f2f7;
+  }
+
+  :global(html.dark) .dropdown-item:hover {
+    background: #3a3a3c;
   }
 
   @media print {

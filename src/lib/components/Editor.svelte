@@ -9,16 +9,19 @@
     fontSize = 14,
     lineHeight = 1.6,
     maxWidth = "720px",
+    showLineNumbers = false,
   }: {
     value: string;
     onChange: (newValue: string) => void;
     fontSize?: number;
     lineHeight?: number;
     maxWidth?: string;
+    showLineNumbers?: boolean;
   } = $props();
 
   let textareaEl: HTMLTextAreaElement | undefined = $state();
   let backdropEl: HTMLDivElement | undefined = $state();
+  let gutterEl: HTMLDivElement | undefined = $state();
 
   // Local mirror so cursor doesn't jump on parent state updates
   // svelte-ignore state_referenced_locally
@@ -31,6 +34,34 @@
       localValue = value;
     }
   });
+
+  // Line-number gutter. Rendered as a third transparent mirror that wraps
+  // identically to the textarea (same font, width, padding), so each logical
+  // line's block has the same height as in the textarea and its number — a CSS
+  // counter on the block — lines up with the block's top, even when the line
+  // soft-wraps to several rows (continuation rows get no number, like a
+  // wrapping code editor). No JS height measuring needed.
+  const escapeHtml = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const lineCount = $derived(localValue.split("\n").length);
+  // Width the digits need; monospace so `ch` is exact. Min 2 digits + a gap.
+  const gutterWidth = $derived(`calc(${Math.max(2, String(lineCount).length)}ch + 16px)`);
+  // ponytail: rebuilds all line blocks on each caret move (for the active-line
+  // class). O(lines) per keystroke — fine for typical docs; switch to a single
+  // positioned highlight bar if it ever lags on very large files.
+  const gutterHtml = $derived(
+    showLineNumbers
+      ? localValue
+          // Empty lines would collapse to zero height and desync the count, so
+          // give them a zero-width space to reserve exactly one line box.
+          .split("\n")
+          .map(
+            (l, i) =>
+              `<div class="gl${i === activeLine ? " active" : ""}">${escapeHtml(l) || "​"}</div>`
+          )
+          .join("")
+      : ""
+  );
 
   // --- Find-in-editor highlight backdrop --------------------------------------
   // mark.js can't highlight a <textarea> (its contents aren't markable DOM text),
@@ -59,6 +90,9 @@
     if (backdropEl && textareaEl) {
       backdropEl.scrollTop = textareaEl.scrollTop;
       backdropEl.scrollLeft = textareaEl.scrollLeft;
+    }
+    if (gutterEl && textareaEl) {
+      gutterEl.scrollTop = textareaEl.scrollTop;
     }
   }
 
@@ -92,8 +126,17 @@
     searchTotal.set(0);
   });
 
+  // Which logical line the caret is on, for the current-line highlight. Read
+  // from selectionStart on every caret move (input, click, arrow keys, focus).
+  let activeLine = $state(0);
+  function updateActiveLine() {
+    if (!textareaEl) return;
+    activeLine = localValue.slice(0, textareaEl.selectionStart).split("\n").length - 1;
+  }
+
   function handleInput() {
     onChange(localValue);
+    updateActiveLine();
     syncBackdropScroll();
   }
 
@@ -117,12 +160,23 @@
 </script>
 
 <div class="editor-wrap">
-  <div class="editor-stack" style="max-width: {maxWidth};">
+  <div class="editor-stack" class:with-gutter={showLineNumbers} style="max-width: {maxWidth}; --gutter-w: {gutterWidth};">
+    {#if showLineNumbers}
+      <!-- Line-number gutter: a transparent mirror wrapping identically to the
+           textarea; CSS counters on each line block render the numbers. -->
+      <div
+        bind:this={gutterEl}
+        class="editor-gutter"
+        aria-hidden="true"
+        style="font-size: {fontSize}px; line-height: {lineHeight};"
+      >{@html gutterHtml}</div>
+    {/if}
     <!-- Highlight layer: mirrors the textarea text so search matches can be
          painted behind the transparent textarea. -->
     <div
       bind:this={backdropEl}
       class="editor-backdrop"
+      class:with-gutter={showLineNumbers}
       aria-hidden="true"
       style="font-size: {fontSize}px; line-height: {lineHeight};"
     >{@html highlightHtml}</div>
@@ -131,8 +185,12 @@
       bind:value={localValue}
       oninput={handleInput}
       onkeydown={handleKeydown}
+      onkeyup={updateActiveLine}
+      onclick={updateActiveLine}
+      onfocus={updateActiveLine}
       onscroll={syncBackdropScroll}
       class="editor"
+      class:with-gutter={showLineNumbers}
       style="font-size: {fontSize}px; line-height: {lineHeight};"
       spellcheck="false"
       autocomplete="off"
@@ -168,10 +226,11 @@
     height: 100%;
   }
 
-  /* The textarea and the highlight backdrop MUST share identical text metrics
-     and box sizing so their wrapped lines line up exactly. */
+  /* The textarea, the highlight backdrop, and the line-number gutter MUST share
+     identical text metrics and box sizing so their wrapped lines line up. */
   .editor,
-  .editor-backdrop {
+  .editor-backdrop,
+  .editor-gutter {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -219,6 +278,86 @@
     pointer-events: none;
     user-select: none;
     z-index: 0;
+  }
+
+  /* With the gutter on, both text layers shift right by the gutter width so
+     their text starts after the numbers and still wraps at a matching width. */
+  .editor.with-gutter,
+  .editor-backdrop.with-gutter {
+    padding-left: calc(32px + var(--gutter-w));
+  }
+
+  /* Line-number gutter. Transparent full-width text mirror (so line blocks wrap
+     to the same heights as the textarea); the number is a CSS counter drawn in
+     the left strip. overflow:hidden + JS scrollTop sync keeps it aligned.
+     ponytail: exact on macOS overlay scrollbars (0px); on classic scrollbars the
+     textarea reserves a ~15px gutter this layer doesn't, so long wrapped lines
+     can drift — same known trade-off the search backdrop documents above. */
+  .editor-gutter {
+    padding-left: calc(32px + var(--gutter-w));
+    color: transparent;
+    pointer-events: none;
+    user-select: none;
+    overflow: hidden;
+    z-index: 0;
+    counter-reset: gl;
+  }
+
+  .editor-gutter :global(.gl) {
+    counter-increment: gl;
+    position: relative;
+  }
+
+  .editor-gutter :global(.gl)::before {
+    content: counter(gl);
+    position: absolute;
+    left: calc(-1 * var(--gutter-w));
+    width: calc(var(--gutter-w) - 8px);
+    text-align: right;
+    color: #b0b0b5;
+  }
+
+  :global(html.dark) .editor-gutter :global(.gl)::before {
+    color: #5a5a5e;
+  }
+
+  /* Current line: full-width subtle highlight + a brighter, higher-contrast
+     number, the way a code editor marks the caret's line. */
+  .editor-gutter :global(.gl.active) {
+    background: rgba(0, 0, 0, 0.035);
+  }
+
+  :global(html.dark) .editor-gutter :global(.gl.active) {
+    background: rgba(255, 255, 255, 0.045);
+  }
+
+  .editor-gutter :global(.gl.active)::before {
+    color: #3f3f46;
+    font-weight: 500;
+  }
+
+  :global(html.dark) .editor-gutter :global(.gl.active)::before {
+    color: #c8c8cd;
+  }
+
+  /* Gutter column: a faint tint + hairline divider separating the numbers from
+     the text. Static (doesn't scroll), painted behind the numbers. */
+  .editor-stack.with-gutter::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: calc(32px + var(--gutter-w) - 4px);
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+    background: rgba(0, 0, 0, 0.015);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  :global(html.dark) .editor-stack.with-gutter::before {
+    border-right-color: rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.02);
   }
 
   /* In the backdrop only the <mark> backgrounds should be visible; the real,

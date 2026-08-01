@@ -989,6 +989,7 @@
         fontSize={$settings.fontSize}
         lineHeight={$settings.lineHeight}
         maxWidth={contentMaxWidth}
+        showLineNumbers={$settings.showLineNumbers}
       />
     {:else if rawMode}
       <main class="content-main" class:toc-spaced={$tocVisible && $tocEntries.length > 0}>

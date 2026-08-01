@@ -7,6 +7,7 @@ export interface ReaderSettings {
   maxWidth: number;
   widthMode: "comfortable" | "wide";
   closeOnEscape: boolean;
+  showLineNumbers: boolean;
 }
 
 const STORAGE_KEY = "mdhero-settings";
@@ -27,6 +28,7 @@ function loadSettings(): ReaderSettings {
     maxWidth: DEFAULT_MAX_WIDTH,
     widthMode: "comfortable",
     closeOnEscape: true,
+    showLineNumbers: true,
   };
 
   if (typeof localStorage === "undefined") return defaults;

@@ -47,6 +47,23 @@
         </section>
 
         <section class="settings-section">
+          <h3 class="section-title">Editor</h3>
+
+          <label class="setting-row">
+            <div class="setting-text">
+              <span class="setting-label">Line numbers</span>
+              <span class="setting-hint">Show a line-number gutter in the editor.</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={$settings.showLineNumbers}
+              onchange={(e) => settings.update((s) => ({ ...s, showLineNumbers: e.currentTarget.checked }))}
+              class="setting-switch"
+            />
+          </label>
+        </section>
+
+        <section class="settings-section">
           <h3 class="section-title">AI Lookup</h3>
           <p class="section-hint">Right-click selected text in the viewer to send it to an AI tool. Manage providers and saved prompts below.</p>
           <AILookupSettings />

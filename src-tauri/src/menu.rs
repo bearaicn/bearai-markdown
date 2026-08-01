@@ -23,7 +23,10 @@ pub fn create_menu<R: Runtime>(app: &AppHandle<R>) -> Result<Menu<R>, tauri::Err
             &PredefinedMenuItem::hide_others(app, None)?,
             &PredefinedMenuItem::show_all(app, None)?,
             &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::quit(app, None)?,
+            // Custom Quit (not PredefinedMenuItem::quit) so Cmd+Q / menu Quit
+            // fire a "quit" menu event instead of terminating outright — the
+            // frontend guards it for unsaved changes (#54).
+            &MenuItem::with_id(app, "quit", "Quit MDHero", true, Some("CmdOrCtrl+Q"))?,
         ],
     )?;
 

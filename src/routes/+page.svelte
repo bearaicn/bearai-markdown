@@ -416,6 +416,35 @@
     (window as any).__mdhero_about = () => {
       aboutVisible = true;
     };
+    // App-quit guard (#54): the red-button (CloseRequested) and Cmd+Q / menu
+    // Quit (custom "quit" menu item) both route here rather than terminating, so
+    // quitting with unsaved edits gets the same confirm dialog as tab close.
+    // One prompt covers all dirty tabs. On "Keep Editing" we stay; otherwise
+    // (Discard, no dirty tabs, or dialog failure) we quit via quit_app — a hard
+    // exit, so we never trap the user in an app that can't close.
+    (window as any).__mdhero_quit = async () => {
+      const dirty = $tabs.filter((t) => t.dirty);
+      if (dirty.length > 0) {
+        try {
+          const { ask } = await import("@tauri-apps/plugin-dialog");
+          const msg =
+            dirty.length === 1
+              ? `You have unsaved changes to ${dirty[0].fileName}.`
+              : `You have unsaved changes in ${dirty.length} tabs.`;
+          const keepEditing = await ask(msg, {
+            title: "Unsaved changes",
+            kind: "warning",
+            okLabel: "Keep Editing",
+            cancelLabel: "Discard",
+          });
+          if (keepEditing) return;
+        } catch {
+          // Fall through and quit rather than trap the user behind prevent_close.
+        }
+      }
+      saveProgressNow();
+      invoke("quit_app").catch(() => {});
+    };
     (window as any).__mdhero_check_updates = async () => {
       if (get(checkInFlight)) return;
       // Reset dismissal so a manual check always re-surfaces an available update.

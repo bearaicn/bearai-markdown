@@ -57,6 +57,21 @@ pub fn run() {
             let menu = menu::create_menu(&handle)?;
             app.set_menu(menu)?;
 
+            // Red-button (window) close routes through the frontend quit guard
+            // instead of closing, so unsaved changes get a confirm dialog (#54).
+            // Cmd+Q / menu Quit go through the custom "quit" menu event above.
+            // quit_app (AppHandle::exit) is a hard exit that bypasses this, so a
+            // confirmed quit can't loop back here.
+            if let Some(main_window) = app.get_webview_window("main") {
+                let quit_win = main_window.clone();
+                main_window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = quit_win.eval("window.__mdhero_quit?.()");
+                    }
+                });
+            }
+
             app.on_menu_event(move |app_handle, event| {
                 if let Some(window) = app_handle.get_webview_window("main") {
                     let id = event.id().as_ref();
@@ -78,6 +93,9 @@ pub fn run() {
                         }
                         "about" => {
                             let _ = window.eval("window.__mdhero_about?.()");
+                        }
+                        "quit" => {
+                            let _ = window.eval("window.__mdhero_quit?.()");
                         }
                         // AI lookup right-click menu items — forward the
                         // structured ID to the frontend router. JSON-stringify

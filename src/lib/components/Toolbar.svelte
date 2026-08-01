@@ -206,8 +206,8 @@
       onclick={onEditToggle}
       class="btn btn-icon"
       class:active={isEditing}
-      disabled={!$document.renderedHtml || !canEdit}
-      title={!$document.renderedHtml
+      disabled={!canEdit}
+      title={!$document.filePath
         ? 'Edit (open a file first)'
         : !canEdit
         ? 'Edit (only available for local files)'

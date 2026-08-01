@@ -978,7 +978,10 @@
         <p class="error-msg">{$docStore.error}</p>
       </div>
     </div>
-  {:else if $docStore.renderedHtml}
+  {:else if $docStore.filePath}
+    <!-- Gate on filePath, not renderedHtml: an empty file renders to empty HTML,
+         and gating on that dropped the user back to the home/recents view with no
+         way to edit (#52). A real (even empty) file tab always shows here. -->
     {#if activeTab?.isEditing}
       <Editor
         value={activeTab.editContent}

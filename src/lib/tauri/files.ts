@@ -38,7 +38,11 @@ export async function openFile(path: string): Promise<void> {
     // HTML hits the DOM, so images outside the static $HOME scope load (#31).
     await allowAssets(result.assetPaths);
 
-    tabStore.addTab(absolutePath, fileName, content, result.html, result.frontmatter, result.wordCount);
+    const tabId = tabStore.addTab(absolutePath, fileName, content, result.html, result.frontmatter, result.wordCount);
+
+    // An empty file has nothing to read — drop straight into the editor so the
+    // user can start writing, instead of staring at a blank viewer (#52).
+    if (content.trim() === "") tabStore.setEditing(tabId, true);
 
     document.set({
       filePath: absolutePath,

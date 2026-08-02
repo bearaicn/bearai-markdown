@@ -10,6 +10,7 @@
     lineHeight = 1.6,
     maxWidth = "720px",
     showLineNumbers = false,
+    split = false,
   }: {
     value: string;
     onChange: (newValue: string) => void;
@@ -17,6 +18,7 @@
     lineHeight?: number;
     maxWidth?: string;
     showLineNumbers?: boolean;
+    split?: boolean;
   } = $props();
 
   let textareaEl: HTMLTextAreaElement | undefined = $state();
@@ -159,7 +161,7 @@
   }
 </script>
 
-<div class="editor-wrap">
+<div class="editor-wrap" class:split>
   <div class="editor-stack" class:with-gutter={showLineNumbers} style="max-width: {maxWidth}; --gutter-w: {gutterWidth};">
     {#if showLineNumbers}
       <!-- Line-number gutter: a transparent mirror wrapping identically to the
@@ -217,6 +219,17 @@
 
   :global(html.dark) .editor-wrap {
     background: #161618;
+  }
+
+  /* Split mode (#19): editor occupies the left half; the preview pane (in
+     +page) fills the right half. A divider marks the seam. */
+  .editor-wrap.split {
+    right: 50%;
+    border-right: 1px solid #e5e5e5;
+  }
+
+  :global(html.dark) .editor-wrap.split {
+    border-right-color: #2c2c2e;
   }
 
   .editor-stack {

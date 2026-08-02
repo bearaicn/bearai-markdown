@@ -17,7 +17,8 @@
     isEditing = false,
     dirty = false,
     canEdit = false,
-    onEditToggle = () => {},
+    editMode = "view",
+    onSetMode = (_m: "view" | "split" | "edit") => {},
     onSave = () => {},
     onOpenSettings = () => {},
     canPresent = false,
@@ -32,7 +33,8 @@
     isEditing?: boolean;
     dirty?: boolean;
     canEdit?: boolean;
-    onEditToggle?: () => void;
+    editMode?: "view" | "split" | "edit";
+    onSetMode?: (m: "view" | "split" | "edit") => void;
     onSave?: () => void;
     onOpenSettings?: () => void;
     canPresent?: boolean;
@@ -136,6 +138,41 @@
     {/if}
   </div>
 
+  <!-- View / Split / Edit segmented control, centered in the toolbar. Split &
+       Edit need an editable local file; when there isn't one they disable with
+       an explaining tip. -->
+  <div class="toolbar-center">
+    <div
+      class="mode-segmented"
+      role="group"
+      aria-label="View mode"
+      title={!$document.filePath
+        ? 'View · Split · Edit (open a file first)'
+        : !canEdit
+        ? 'Split and Edit are only available for local files'
+        : 'View · Split · Edit'}
+    >
+      <button
+        class="mode-seg"
+        class:active={editMode === 'view'}
+        onclick={() => onSetMode('view')}
+        disabled={!$document.filePath}
+      >View</button>
+      <button
+        class="mode-seg"
+        class:active={editMode === 'split'}
+        onclick={() => onSetMode('split')}
+        disabled={!canEdit}
+      >Split</button>
+      <button
+        class="mode-seg"
+        class:active={editMode === 'edit'}
+        onclick={() => onSetMode('edit')}
+        disabled={!canEdit}
+      >Edit</button>
+    </div>
+  </div>
+
   <div class="toolbar-right">
     <button
       onclick={toggleToc}
@@ -221,27 +258,6 @@
         </svg>
       </button>
     {/if}
-
-    <div class="separator"></div>
-
-    <button
-      onclick={onEditToggle}
-      class="btn btn-icon"
-      class:active={isEditing}
-      disabled={!canEdit}
-      title={!$document.filePath
-        ? 'Edit (open a file first)'
-        : !canEdit
-        ? 'Edit (only available for local files)'
-        : isEditing
-        ? 'Exit edit mode (Cmd+E)'
-        : 'Edit (Cmd+E)'}
-    >
-      <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M11.5 2.5l2 2-8 8H3.5v-2l8-8z"/>
-        <path d="M10 4l2 2"/>
-      </svg>
-    </button>
 
     <button
       onclick={onSave}
@@ -389,6 +405,17 @@
     gap: 2px;
   }
 
+  /* Centered mode switcher: absolutely centered in the toolbar so it stays put
+     regardless of the left/right group widths. Anchors to .toolbar (sticky). */
+  .toolbar-center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+  }
+
   .btn-group {
     display: flex;
     gap: 1px;
@@ -508,6 +535,57 @@
 
   :global(html.dark) .separator {
     background: #3a3a3c;
+  }
+
+  /* View / Split / Edit segmented control */
+  .mode-segmented {
+    display: inline-flex;
+    align-items: stretch;
+    height: 28px;
+    padding: 2px;
+    gap: 2px;
+    background: #e8e8ed;
+    border-radius: 7px;
+  }
+
+  :global(html.dark) .mode-segmented {
+    background: #2c2c2e;
+  }
+
+  .mode-seg {
+    border: none;
+    background: transparent;
+    color: #5f6368;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 0 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+
+  .mode-seg:hover:not(:disabled):not(.active) {
+    color: #1c1c1e;
+  }
+
+  :global(html.dark) .mode-seg:hover:not(:disabled):not(.active) {
+    color: #e5e5e7;
+  }
+
+  .mode-seg.active {
+    background: #ffffff;
+    color: #0891b2;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+
+  :global(html.dark) .mode-seg.active {
+    background: #48484a;
+    color: #22d3ee;
+  }
+
+  .mode-seg:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 
   .dropdown {

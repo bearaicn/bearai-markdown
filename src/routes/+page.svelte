@@ -60,6 +60,12 @@
   let zenMode = $state(false);
   let rawMode = $state(false);
   let presenting = $state(false);
+  // Split mode (#19): editor + live preview side by side. Both Split and Edit
+  // are "editing" states (activeTab.isEditing true); splitMode just adds the
+  // preview pane, so save / dirty / editContent all keep working unchanged.
+  let splitMode = $state(false);
+  let splitPreviewHtml = $state("");
+  let splitPreviewTimer: ReturnType<typeof setTimeout> | undefined;
   let contentMaxWidth = $derived(getContentMaxWidth($settings));
 
   // Lightbox state
@@ -165,6 +171,26 @@
   let currentMode = $derived<ViewMode>(
     activeTab?.isEditing ? "editor" : rawMode ? "raw" : "viewer"
   );
+  // Which segment of the View/Split/Edit control is active.
+  let activeEditMode = $derived<"view" | "split" | "edit">(
+    activeTab?.isEditing ? (splitMode ? "split" : "edit") : "view"
+  );
+
+  // Live-render the editor content into the split preview pane, debounced so
+  // fast typing stays smooth. ponytail: full re-render per debounce tick; fine
+  // for typical docs — add incremental rendering only if a huge file lags.
+  $effect(() => {
+    if (!splitMode || !activeTab?.isEditing) return;
+    const content = activeTab.editContent;
+    const baseDir = getBaseDir(activeTab.filePath);
+    clearTimeout(splitPreviewTimer);
+    splitPreviewTimer = setTimeout(() => {
+      const result = renderFull(content, baseDir);
+      allowAssets(result.assetPaths);
+      splitPreviewHtml = result.html;
+    }, 120);
+    return () => clearTimeout(splitPreviewTimer);
+  });
 
   // Marp presentation (#44). `presenting` is a page-level view mode (like rawMode);
   // it's only meaningful when the active doc is a Marp deck.
@@ -176,8 +202,9 @@
   function togglePresent() {
     presenting = !presenting;
     if (presenting) {
-      // Entering the slideshow supersedes raw/edit.
+      // Entering the slideshow supersedes raw/edit/split.
       rawMode = false;
+      splitMode = false;
       if (activeTab?.isEditing) tabStore.setEditing(activeTab.id, false);
     }
   }
@@ -230,6 +257,7 @@
       }
       if (activeTab.isEditing) tabStore.setEditing(activeTab.id, false);
       rawMode = target === "raw";
+      splitMode = false; // leaving editing always leaves split
     }
 
     // Scroll the destination after it renders. Two rAFs are needed for the
@@ -349,14 +377,30 @@
     return EXECUTABLE_EXTENSIONS.has(name.slice(dot + 1).toLowerCase());
   }
 
-  function handleEditToggle() {
-    if (!canEditActive || !activeTab) return;
-    if (activeTab.isEditing) {
-      // Exiting edit — go back to whichever non-edit mode was active before
+  // View / Split / Edit segmented control (#19). Split & Edit are both editing
+  // states; splitMode is the only difference. Routed through switchMode so the
+  // source-line position is preserved across the change.
+  function setMode(target: "view" | "split" | "edit") {
+    if (!activeTab) return;
+    if (target === "view") {
+      splitMode = false;
       switchMode(rawMode ? "raw" : "viewer");
+      return;
+    }
+    if (!canEditActive) return;
+    if (target === "edit") {
+      splitMode = false;
+      switchMode("editor");
     } else {
       switchMode("editor");
+      splitMode = true;
     }
+  }
+
+  function handleEditToggle() {
+    if (!canEditActive || !activeTab) return;
+    // Cmd+E toggles full Edit against View (never Split).
+    setMode(activeTab.isEditing ? "view" : "edit");
   }
 
   function handleRawToggle() {
@@ -904,6 +948,7 @@
     if (!id || id === HOME_TAB_ID) {
       rawMode = false;
       presenting = false;
+      splitMode = false;
       docStore.set({
         filePath: null,
         fileName: null,
@@ -975,7 +1020,8 @@
       isEditing={activeTab?.isEditing ?? false}
       dirty={activeTab?.dirty ?? false}
       canEdit={canEditActive}
-      onEditToggle={handleEditToggle}
+      editMode={activeEditMode}
+      onSetMode={setMode}
       onSave={() => activeTab && handleSave(activeTab)}
       onOpenSettings={() => (settingsVisible = true)}
       canPresent={activeIsMarp}
@@ -1022,6 +1068,26 @@
         onExit={() => (presenting = false)}
         onLocalLink={handleLocalLink}
       />
+    {:else if activeTab?.isEditing && splitMode}
+      <!-- Split (#19): editor left, live preview right. Both panes are fixed
+           half-width; the Editor's own fixed positioning takes the `split` prop
+           to yield the left half. -->
+      <Editor
+        value={activeTab.editContent}
+        onChange={(v) => tabStore.updateEditContent(activeTab!.id, v)}
+        fontSize={$settings.fontSize}
+        lineHeight={$settings.lineHeight}
+        maxWidth="100%"
+        showLineNumbers={$settings.showLineNumbers}
+        split
+      />
+      <main class="split-preview">
+        <MarkdownRenderer
+          html={splitPreviewHtml}
+          onImageClick={(src, all, idx) => { lightboxImages = all; lightboxIndex = idx; lightboxVisible = true; }}
+          onLocalLink={handleLocalLink}
+        />
+      </main>
     {:else if activeTab?.isEditing}
       <Editor
         value={activeTab.editContent}
@@ -1110,6 +1176,24 @@
   .content-main {
     padding-bottom: 4rem;
     transition: padding-left 0.15s ease;
+  }
+
+  /* Split preview pane (#19): fixed right half, mirroring the editor's fixed
+     left half. Scrolls independently. Sits below the toolbar+tabbar (75px). */
+  .split-preview {
+    position: fixed;
+    top: 75px;
+    right: 0;
+    left: 50%;
+    bottom: 0;
+    overflow-y: auto;
+    padding-bottom: 4rem;
+    z-index: 1;
+    background: #fafafa;
+  }
+
+  :global(html.dark) .split-preview {
+    background: #161618;
   }
 
   .content-main.toc-spaced {

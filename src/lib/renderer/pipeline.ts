@@ -116,6 +116,34 @@ function addSourceLinePlugin(mdInstance: MarkdownIt) {
   });
 }
 
+// Text-bearing blocks that should auto-detect direction. Code and math are
+// deliberately excluded — they must stay LTR regardless of surrounding text.
+const DIR_AUTO_BLOCKS = new Set([
+  "paragraph_open",
+  "heading_open",
+  "blockquote_open",
+  "list_item_open",
+  "td_open",
+  "th_open",
+]);
+
+/**
+ * Stamp `dir="auto"` on each text-bearing block so it picks its own base
+ * direction from its first strong-directional character — RTL paragraphs
+ * (Hebrew/Arabic) then right-align on their own, like the browser and VSCode,
+ * without forcing a whole-document direction (#64). Mixed LTR/RTL docs resolve
+ * per block. `dir` is a standard global attribute, so DOMPurify keeps it.
+ */
+function addDirAutoPlugin(mdInstance: MarkdownIt) {
+  mdInstance.core.ruler.push("dir-auto", (state) => {
+    for (const token of state.tokens) {
+      if (DIR_AUTO_BLOCKS.has(token.type)) {
+        token.attrSet("dir", "auto");
+      }
+    }
+  });
+}
+
 export async function initRenderer(): Promise<void> {
   if (initialized) return;
 
@@ -152,6 +180,7 @@ export async function initRenderer(): Promise<void> {
         .replace(/\s+/g, "-"),
   });
   addSourceLinePlugin(md);
+  addDirAutoPlugin(md);
 
   initialized = true;
 }
@@ -186,6 +215,7 @@ export function renderFull(markdown: string, baseDir?: string): RenderResult {
       slugify: (s: string) => s.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-"),
     });
     addSourceLinePlugin(md);
+    addDirAutoPlugin(md);
     initialized = true;
   }
 

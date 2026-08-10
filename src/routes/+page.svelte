@@ -6,10 +6,12 @@
   import {
     allowAssets,
     getBaseDir,
+    newDocument,
     openFile,
     openFileDialog,
     openWithSystem,
     pathExists,
+    saveAsNewDocument,
     saveFile,
   } from "$lib/tauri/files";
   import { showToast } from "$lib/stores/toast";
@@ -273,13 +275,24 @@
   async function handleSave(tab: Tab) {
     if (!tab.dirty) return;
     try {
-      await saveFile(tab.filePath, tab.editContent);
-      const baseDir = getBaseDir(tab.filePath);
+      let targetPath = tab.filePath;
+      let targetName = tab.fileName;
+      // An unsaved `new://` document has no location yet — prompt for one on
+      // this first save, which rebinds the tab to the chosen real path (#63).
+      if (tab.filePath.startsWith("new://")) {
+        const saved = await saveAsNewDocument(tab.id, tab.editContent);
+        if (!saved) return; // cancelled — keep editing, stays dirty
+        targetPath = saved;
+        targetName = saved.split("/").pop() ?? saved;
+      } else {
+        await saveFile(tab.filePath, tab.editContent);
+      }
+      const baseDir = getBaseDir(targetPath);
       const result = renderFull(tab.editContent, baseDir);
       await allowAssets(result.assetPaths);
       tabStore.markSaved(tab.id);
       tabStore.updateTabContent(
-        tab.filePath,
+        targetPath,
         tab.editContent,
         result.html,
         result.frontmatter,
@@ -289,8 +302,8 @@
       // when the user toggles out of edit mode (the tab-sync $effect only fires on
       // active-tab change, not on content updates of the same tab).
       docStore.set({
-        filePath: tab.filePath,
-        fileName: tab.fileName,
+        filePath: targetPath,
+        fileName: targetName,
         content: tab.editContent,
         renderedHtml: result.html,
         frontmatter: result.frontmatter,
@@ -314,7 +327,7 @@
     const tab = activeTab;
     // paste:// and url:// tabs have no real base dir to resolve against — keep
     // the prior external-opener behavior for their links.
-    if (!tab || !tab.filePath || tab.filePath.startsWith("paste://") || tab.filePath.startsWith("url://")) {
+    if (!tab || !tab.filePath || tab.filePath.startsWith("paste://") || tab.filePath.startsWith("url://") || tab.filePath.startsWith("new://")) {
       try {
         const { openUrl } = await import("@tauri-apps/plugin-opener");
         await openUrl(href);
@@ -797,10 +810,10 @@
       return;
     }
 
-    // Cmd+T new tab (go home)
+    // Cmd+T new document (blank tab, opens in the editor — #63)
     if ((e.metaKey || e.ctrlKey) && e.key === "t") {
       e.preventDefault();
-      tabStore.goHome();
+      newDocument();
       return;
     }
 
@@ -1001,7 +1014,7 @@
   // Watch for file path changes to set up watcher (only when path actually changes)
   $effect(() => {
     const path = $docStore.filePath;
-    if (path && !path.startsWith("paste://") && path !== lastWatchedPath) {
+    if (path && !path.startsWith("paste://") && !path.startsWith("new://") && path !== lastWatchedPath) {
       lastWatchedPath = path;
       startFileWatcher(path);
     }

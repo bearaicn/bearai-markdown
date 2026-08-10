@@ -183,6 +183,14 @@ function createTabStore() {
     return t?.lastSavedAt ?? 0;
   }
 
+  // Re-point a tab at a real filesystem path + name. Used when an unsaved
+  // `new://` document gets a location on its first save (#63).
+  function rebindPath(id: string, filePath: string, fileName: string) {
+    tabs.update((ts) =>
+      ts.map((t) => (t.id === id ? { ...t, filePath, fileName } : t))
+    );
+  }
+
   return {
     tabs,
     activeTabId,
@@ -197,6 +205,7 @@ function createTabStore() {
     updateEditContent,
     markSaved,
     getLastSavedAt,
+    rebindPath,
     saveScrollPosition,
   };
 }

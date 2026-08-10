@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tabStore, HOME_TAB_ID, type Tab } from "$lib/stores/tabs";
+  import { newDocument } from "$lib/tauri/files";
   import { copyPath } from "$lib/utils/clipboard";
 
   let {
@@ -76,13 +77,16 @@
   }
 
   function handleNewTab() {
-    tabStore.goHome();
+    newDocument();
   }
 
-  // A tab backed by a real file has a canonical absolute path to copy; paste://
-  // and url:// tabs don't (mirrors +page.svelte's canEditActive gate).
+  // A tab backed by a real file has a canonical absolute path to copy; paste://,
+  // url://, and not-yet-saved new:// tabs don't.
   function isFileTab(tab: Tab): boolean {
-    return !!tab.filePath && !tab.filePath.startsWith("paste://") && !tab.filePath.startsWith("url://");
+    return !!tab.filePath
+      && !tab.filePath.startsWith("paste://")
+      && !tab.filePath.startsWith("url://")
+      && !tab.filePath.startsWith("new://");
   }
 
   function handleContextMenu(e: MouseEvent, tab: Tab) {

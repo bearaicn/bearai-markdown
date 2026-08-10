@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { document } from "../stores/document";
 import { tabStore } from "../stores/tabs";
@@ -70,6 +70,51 @@ export async function openFile(path: string): Promise<void> {
       error: `Failed to open file: ${err}`,
     });
   }
+}
+
+let newDocCounter = 0;
+
+/**
+ * Start a fresh, unsaved markdown document in a new tab, opened straight into
+ * the editor — the "new tab" behavior the UI already advertised (#63). It has
+ * no filesystem path yet (a `new://` sentinel, like `paste://`); the location
+ * is chosen on the first save via `saveAsNewDocument`. The watcher and
+ * copy-path/link resolution skip `new://` tabs until they're saved.
+ */
+export function newDocument(): void {
+  const filePath = `new://${Date.now()}-${newDocCounter++}`;
+  const result = renderFull("");
+  const tabId = tabStore.addTab(
+    filePath,
+    "Untitled",
+    "",
+    result.html,
+    result.frontmatter,
+    result.wordCount
+  );
+  tabStore.setEditing(tabId, true);
+}
+
+/**
+ * First-save flow for a `new://` document: prompt for a location, write the
+ * content, then re-point the tab at the chosen real path (watch + recents +
+ * title). Returns the chosen absolute path, or null if the user cancelled the
+ * dialog (caller should leave the tab dirty and in the editor).
+ */
+export async function saveAsNewDocument(tabId: string, content: string): Promise<string | null> {
+  const chosen = await save({
+    defaultPath: "Untitled.md",
+    filters: [{ name: "Markdown", extensions: ["md", "markdown", "mdown", "mkd"] }],
+  });
+  if (!chosen) return null;
+
+  const fileName = chosen.split("/").pop() ?? chosen;
+  await saveFile(chosen, content);
+  tabStore.rebindPath(tabId, chosen, fileName);
+  addRecentFile(chosen, fileName);
+  getCurrentWindow().setTitle(`${fileName} — MDHero`).catch(() => {});
+  invoke("start_watching", { path: chosen }).catch(() => {});
+  return chosen;
 }
 
 export async function openFileDialog(): Promise<void> {

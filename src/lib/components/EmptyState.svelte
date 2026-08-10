@@ -1,7 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { open } from "@tauri-apps/plugin-dialog";
-  import { openFileDialog, openFile } from "../tauri/files";
+  import { openFileDialog, openFile, newDocument } from "../tauri/files";
   import { recentFiles, clearRecentFiles } from "../stores/recents";
   import { pinnedFolders } from "../stores/pinned";
   import { settings } from "../stores/settings";
@@ -140,7 +140,11 @@
 
   <!-- Quick actions -->
   <div class="quick-actions">
-    <button class="qa-btn qa-primary" onclick={openFileDialog}>
+    <button class="qa-btn qa-primary" onclick={newDocument}>
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 1.5h6l3 3v9H3V1.5z"/><line x1="7.5" y1="6" x2="7.5" y2="11"/><line x1="5" y1="8.5" x2="10" y2="8.5"/></svg>
+      New Document
+    </button>
+    <button class="qa-btn" onclick={openFileDialog}>
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l3-2.5h9v10H1.5V5z"/><line x1="1.5" y1="5" x2="4.5" y2="5"/></svg>
       Browse Files
     </button>

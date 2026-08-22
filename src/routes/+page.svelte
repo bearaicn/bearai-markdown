@@ -43,6 +43,8 @@
   import Toast from "$lib/components/Toast.svelte";
   import Editor from "$lib/components/Editor.svelte";
   import PresentationView from "$lib/components/PresentationView.svelte";
+  import FolderSidebar from "$lib/components/FolderSidebar.svelte";
+  import { folderWorkspace } from "$lib/stores/folderWorkspace";
   import { updateScrollPercent } from "$lib/stores/recents";
   import { checkForUpdates, updateAvailable, updateDismissed, checkInFlight } from "$lib/stores/updater";
   import { get } from "svelte/store";
@@ -1021,7 +1023,7 @@
   });
 </script>
 
-<div class="min-h-screen transition-colors page-root">
+<div class="min-h-screen transition-colors page-root" class:folder-open={!zenMode && !presenting && !activeTab?.isEditing && Boolean($folderWorkspace.rootPath) && $folderWorkspace.sidebarVisible}>
   {#if !zenMode}
     <ProgressBar />
     <Toolbar
@@ -1042,6 +1044,9 @@
       onTogglePresent={togglePresent}
     />
     <TabBar onCloseTab={handleCloseTab} />
+  {/if}
+  {#if !zenMode && !presenting && !activeTab?.isEditing}
+    <FolderSidebar />
   {/if}
   <DropZone />
   {#if !zenMode && !activeTab?.isEditing}
@@ -1148,6 +1153,20 @@
   :global(html.dark) .page-root {
     background: #161618;
     color: #e5e5e7;
+  }
+
+  .page-root.folder-open :global(.empty-root),
+  .page-root.folder-open .content-main,
+  .page-root.folder-open .state-center {
+    margin-left: 280px;
+  }
+
+  @media (max-width: 720px) {
+    .page-root.folder-open :global(.empty-root),
+    .page-root.folder-open .content-main,
+    .page-root.folder-open .state-center {
+      margin-left: 0;
+    }
   }
 
   .state-center {

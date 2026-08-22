@@ -2,8 +2,8 @@
   import { invoke } from "@tauri-apps/api/core";
   import { open as openDirDialog } from "@tauri-apps/plugin-dialog";
   import { openFile, openFileDialog } from "$lib/tauri/files";
-  import { recentFiles, removeRecentFile } from "$lib/stores/recents";
-  import { pinnedFolders } from "$lib/stores/pinned";
+  import { openFolder } from "$lib/tauri/folders";
+  import { recentFiles, recentFolders, removeRecentFile } from "$lib/stores/recents";
   import { isUrl, toRawUrl, urlToFileName } from "$lib/utils/url";
   import { renderFull } from "$lib/renderer/pipeline";
   import { tabStore } from "$lib/stores/tabs";
@@ -139,7 +139,8 @@
   }
 
   async function loadFolderFiles() {
-    for (const folder of $pinnedFolders) {
+    for (const item of $recentFolders) {
+      const folder = item.path;
       if (!(folder in folderFiles)) {
         try {
           const files = await invoke<MdFile[]>("list_folder_md_files", { folder });
@@ -151,13 +152,21 @@
     }
   }
 
+  async function handleOpenRecentFolder(path: string) {
+    try {
+      await openFolder(path);
+      visible = false;
+    } catch (err) {
+      console.error("Failed to open recent folder:", err);
+    }
+  }
+
   async function handleAddFolder() {
     try {
       const selected = await openDirDialog({ directory: true, multiple: false });
       if (selected && typeof selected === "string") {
-        pinnedFolders.add(selected);
-        const files = await invoke<MdFile[]>("list_folder_md_files", { folder: selected });
-        folderFiles = { ...folderFiles, [selected]: files };
+        await openFolder(selected);
+        visible = false;
       }
     } catch {}
   }
@@ -184,7 +193,7 @@
       urlInput = "";
       urlError = "";
       // Auto-expand all folders
-      expandedDialogFolders = new Set($pinnedFolders);
+      expandedDialogFolders = new Set($recentFolders.map((folder) => folder.path));
       // Preload in background
       loadPlans();
       loadFolderFiles();
@@ -248,8 +257,8 @@
           onclick={() => { activeTab = "folders"; loadFolderFiles(); }}
         >
           Folders
-          {#if $pinnedFolders.length > 0}
-            <span class="tab-count">{$pinnedFolders.length}</span>
+          {#if $recentFolders.length > 0}
+            <span class="tab-count">{$recentFolders.length}</span>
           {/if}
         </button>
         <button
@@ -286,16 +295,17 @@
             {/each}
           {/if}
         {:else if activeTab === "folders"}
-          {#if $pinnedFolders.length === 0}
+          {#if $recentFolders.length === 0}
             <div class="empty-list">
-              <p>No pinned folders</p>
+              <p>No recent folders</p>
               <button class="add-folder-btn" onclick={handleAddFolder}>
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="7" y1="3" x2="7" y2="11"/><line x1="3" y1="7" x2="11" y2="7"/></svg>
-                Pin a folder
+                Open a folder
               </button>
             </div>
           {:else}
-            {#each $pinnedFolders as folder (folder)}
+            {#each $recentFolders as folderItem (folderItem.path)}
+              {@const folder = folderItem.path}
               <div class="folder-section">
                 <button class="folder-header" onclick={() => toggleDialogFolder(folder)}>
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor" class="folder-chevron" class:expanded={expandedDialogFolders.has(folder)}>
@@ -308,6 +318,7 @@
                   <span class="folder-file-count">{folderFiles[folder]?.length ?? '...'}</span>
                   <span class="folder-path">{shortenPath(folder)}</span>
                 </button>
+                <button class="open-workspace-btn" onclick={() => handleOpenRecentFolder(folder)}>Open folder</button>
                 {#if expandedDialogFolders.has(folder)}
                   {#if folderFiles[folder]}
                     {#each folderFiles[folder] as file (file.path)}
@@ -844,6 +855,19 @@
     cursor: pointer;
     transition: color 0.12s, background 0.12s;
   }
+
+  .open-workspace-btn {
+    margin: 0 14px 6px 34px;
+    padding: 4px 9px;
+    border: 1px solid #d1d1d6;
+    border-radius: 5px;
+    background: white;
+    color: #52525b;
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .open-workspace-btn:hover { background: #f2f2f7; color: #1c1c1e; }
+  :global(html.dark) .open-workspace-btn { background: #252528; border-color: #3a3a3c; color: #c7c7cc; }
 
   .add-folder-inline:hover {
     color: #0891B2;

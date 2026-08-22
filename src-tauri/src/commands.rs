@@ -256,6 +256,170 @@ pub struct MdFile {
     pub modified: u64,
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectoryEntry {
+    pub name: String,
+    pub path: String,
+    pub kind: String,
+    pub modified: Option<u64>,
+    pub has_children: Option<bool>,
+}
+
+fn is_ignored_directory(name: &str) -> bool {
+    name.starts_with('.')
+        || matches!(
+            name,
+            "node_modules" | "target" | "dist" | "build" | ".git" | "__pycache__" | "vendor"
+        )
+}
+
+fn is_markdown_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| {
+            matches!(
+                ext.to_ascii_lowercase().as_str(),
+                "md" | "markdown" | "mdown" | "mkd"
+            )
+        })
+        .unwrap_or(false)
+}
+
+fn directory_has_visible_children(directory: &Path) -> bool {
+    fs::read_dir(directory)
+        .ok()
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|entry| {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            (path.is_dir() && !is_ignored_directory(&name))
+                || (path.is_file() && is_markdown_path(&path))
+        })
+}
+
+/// Return one directory level for the workspace tree. The selected root is a
+/// hard boundary: callers cannot walk to a parent or through a symlink outside
+/// it. Subdirectories are loaded lazily by subsequent calls.
+#[tauri::command]
+pub fn list_directory(root: String, directory: String) -> Result<Vec<DirectoryEntry>, String> {
+    let root_path =
+        fs::canonicalize(&root).map_err(|e| format!("Cannot open folder '{}': {}", root, e))?;
+    if !root_path.is_dir() {
+        return Err(format!("Not a folder: {}", root));
+    }
+
+    let directory_path = fs::canonicalize(&directory)
+        .map_err(|e| format!("Cannot read folder '{}': {}", directory, e))?;
+    if !directory_path.is_dir() || !directory_path.starts_with(&root_path) {
+        return Err("Folder is outside the opened workspace".to_string());
+    }
+
+    let entries = fs::read_dir(&directory_path)
+        .map_err(|e| format!("Failed to read folder '{}': {}", directory, e))?;
+    let mut result = Vec::new();
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if path.is_dir() {
+            if is_ignored_directory(&name) {
+                continue;
+            }
+            result.push(DirectoryEntry {
+                name,
+                path: path.to_string_lossy().to_string(),
+                kind: "folder".to_string(),
+                modified: None,
+                has_children: Some(directory_has_visible_children(&path)),
+            });
+        } else if path.is_file() && is_markdown_path(&path) {
+            let modified = entry
+                .metadata()
+                .ok()
+                .and_then(|m| m.modified().ok())
+                .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|duration| duration.as_millis() as u64);
+            result.push(DirectoryEntry {
+                name,
+                path: path.to_string_lossy().to_string(),
+                kind: "file".to_string(),
+                modified,
+                has_children: None,
+            });
+        }
+    }
+
+    result.sort_by(|a, b| {
+        let kind_order = |kind: &str| if kind == "folder" { 0 } else { 1 };
+        kind_order(&a.kind)
+            .cmp(&kind_order(&b.kind))
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    Ok(result)
+}
+
+#[cfg(test)]
+mod directory_tests {
+    use super::list_directory;
+    use std::{
+        fs,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    #[test]
+    fn lists_one_level_with_folders_first_and_markdown_only() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("mdhero-directory-test-{suffix}"));
+        let child = root.join("docs");
+        fs::create_dir_all(&child).unwrap();
+        fs::write(root.join("README.md"), "# Root").unwrap();
+        fs::write(root.join("ignored.txt"), "ignored").unwrap();
+        fs::write(child.join("nested.md"), "# Nested").unwrap();
+
+        let entries = list_directory(
+            root.to_string_lossy().to_string(),
+            root.to_string_lossy().to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].kind, "folder");
+        assert_eq!(entries[0].name, "docs");
+        assert_eq!(entries[0].has_children, Some(true));
+        assert_eq!(entries[1].kind, "file");
+        assert_eq!(entries[1].name, "README.md");
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn rejects_directories_outside_the_workspace_root() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let base = std::env::temp_dir().join(format!("mdhero-boundary-test-{suffix}"));
+        let root = base.join("root");
+        let outside = base.join("outside");
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+
+        let result = list_directory(
+            root.to_string_lossy().to_string(),
+            outside.to_string_lossy().to_string(),
+        );
+        assert!(result.is_err());
+
+        fs::remove_dir_all(&base).unwrap();
+    }
+}
+
 // ---- AI Lookup right-click context menu ----------------------------------
 //
 // The frontend's aiLookup store owns the data (providers + prompts). When the

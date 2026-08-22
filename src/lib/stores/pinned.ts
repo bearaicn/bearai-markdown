@@ -1,38 +1,18 @@
-import { writable } from "svelte/store";
+import { derived } from "svelte/store";
+import { recentFolders, setFolderFavorite } from "./recents";
 
-const STORAGE_KEY = "mdhero_pinned_folders";
-
-function loadPinned(): string[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return [];
-}
-
-function savePinned(folders: string[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(folders));
-  } catch {}
-}
-
-const store = writable<string[]>(loadPinned());
-
-store.subscribe((folders) => {
-  savePinned(folders);
-});
+// Compatibility adapter for existing callers. Favorites now share the unified
+// recent-item model so folder history and pinning cannot drift apart.
+const paths = derived(recentFolders, ($folders) =>
+  $folders.filter((folder) => folder.favorite).map((folder) => folder.path)
+);
 
 export const pinnedFolders = {
-  subscribe: store.subscribe,
-
+  subscribe: paths.subscribe,
   add(path: string) {
-    store.update((folders) => {
-      if (folders.includes(path)) return folders;
-      return [...folders, path];
-    });
+    setFolderFavorite(path, true);
   },
-
   remove(path: string) {
-    store.update((folders) => folders.filter((f) => f !== path));
+    setFolderFavorite(path, false);
   },
 };

@@ -84,6 +84,7 @@ pub fn run() {
             commands::allow_assets,
             commands::list_claude_plans,
             commands::list_folder_md_files,
+            commands::list_directory,
             commands::quit_app,
             commands::show_ai_context_menu,
             watcher::start_watching,

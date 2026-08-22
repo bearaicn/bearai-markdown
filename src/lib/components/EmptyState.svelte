@@ -1,8 +1,8 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { open } from "@tauri-apps/plugin-dialog";
   import { openFileDialog, openFile, newDocument } from "../tauri/files";
-  import { recentFiles, clearRecentFiles } from "../stores/recents";
+  import { openFolder } from "../tauri/folders";
+  import { recentFiles, recentFolders, clearRecentFiles, clearRecentFolders } from "../stores/recents";
   import { pinnedFolders } from "../stores/pinned";
   import { settings } from "../stores/settings";
   import UpdateBanner from "./UpdateBanner.svelte";
@@ -54,16 +54,20 @@
     }
   });
 
-  async function addPinnedFolder() {
+  async function handleOpenFolder() {
     try {
-      const selected = await open({ directory: true, multiple: false });
-      if (selected && typeof selected === "string") {
-        pinnedFolders.add(selected);
-        invoke<MdFile[]>("list_folder_md_files", { folder: selected }).then((files) => {
-          folderFiles = { ...folderFiles, [selected]: files };
-        }).catch(() => {});
-      }
-    } catch {}
+      await openFolder();
+    } catch (err) {
+      console.error("Folder dialog error:", err);
+    }
+  }
+
+  async function handleOpenRecentFolder(path: string) {
+    try {
+      await openFolder(path);
+    } catch (err) {
+      console.error("Failed to open recent folder:", err);
+    }
   }
 
   function removePinnedFolder(e: MouseEvent, path: string) {
@@ -152,9 +156,9 @@
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7.5" r="5.5"/><ellipse cx="7.5" cy="7.5" rx="2.5" ry="5.5"/><line x1="2" y1="7.5" x2="13" y2="7.5"/></svg>
       Open URL
     </button>
-    <button class="qa-btn" onclick={addPinnedFolder}>
+    <button class="qa-btn" onclick={handleOpenFolder}>
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><line x1="7.5" y1="3" x2="7.5" y2="12"/><line x1="3" y1="7.5" x2="12" y2="7.5"/></svg>
-      Pin Folder
+      Open Folder
     </button>
   </div>
 
@@ -174,6 +178,33 @@
       </div>
     </div>
   {/snippet}
+
+  {#snippet recentFoldersSection()}
+    <div class="section recent-folders-section">
+      <div class="section-header">
+        <h2 class="section-title">Recent Folders</h2>
+        <button class="section-action" onclick={() => { clearRecentFolders(); }}>Clear</button>
+      </div>
+      <div class="card card-scroll uniform-card">
+        {#each $recentFolders as folder (folder.path)}
+          <button class="item" onclick={() => handleOpenRecentFolder(folder.path)}>
+            <div class="item-icon folder">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1.5 4.5l3-2.5h8v9H1.5V4.5z"/><line x1="1.5" y1="4.5" x2="4.5" y2="4.5"/></svg>
+            </div>
+            <div class="item-info">
+              <span class="item-name">{folder.name}{folder.favorite ? " ★" : ""}</span>
+              <span class="item-path">{shortenPath(folder.path)}</span>
+            </div>
+            <span class="item-time">{folder.openedAt > 0 ? formatTime(folder.openedAt) : "Pinned"}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/snippet}
+
+  {#if $recentFolders.length > 0}
+    {@render recentFoldersSection()}
+  {/if}
 
   <!-- No folders pinned: recents owns the width in 2 columns -->
   {#if $recentFiles.length > 0 && $pinnedFolders.length === 0}
@@ -521,6 +552,8 @@
 
   .item-icon.plan { background: #e3f8e8; color: #34a853; }
   :global(html.dark) .item-icon.plan { background: #1a3a1f; color: #4ade80; }
+  .item-icon.folder { background: #fff2d8; color: #b7791f; }
+  :global(html.dark) .item-icon.folder { background: #3a2c16; color: #f4bd61; }
 
   .item-info {
     flex: 1;

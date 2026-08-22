@@ -14,9 +14,14 @@ export async function saveFile(path: string, content: string): Promise<void> {
   await invoke("write_markdown_file", { path, content });
 }
 
+function fileNameFromPath(path: string): string {
+  const normalized = path.replace(/\\/g, "/").replace(/\/+$/, "");
+  return normalized.split("/").pop() || normalized;
+}
+
 export async function openFile(path: string): Promise<void> {
   const absolutePath = await resolvePath(path);
-  const fileName = absolutePath.split("/").pop() ?? absolutePath;
+  const fileName = fileNameFromPath(absolutePath);
   const baseDir = getBaseDir(absolutePath);
 
   document.set({
@@ -108,7 +113,7 @@ export async function saveAsNewDocument(tabId: string, content: string): Promise
   });
   if (!chosen) return null;
 
-  const fileName = chosen.split("/").pop() ?? chosen;
+  const fileName = fileNameFromPath(chosen);
   await saveFile(chosen, content);
   tabStore.rebindPath(tabId, chosen, fileName);
   addRecentFile(chosen, fileName);
@@ -145,7 +150,7 @@ export async function reloadCurrentFile(path: string): Promise<void> {
     const content = await readMarkdownFile(absolutePath);
     const baseDir = getBaseDir(absolutePath);
     const result = renderFull(content, baseDir);
-    const fileName = absolutePath.split("/").pop() ?? absolutePath;
+    const fileName = fileNameFromPath(absolutePath);
 
     await allowAssets(result.assetPaths);
 

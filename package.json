@@ -1,6 +1,6 @@
 {
   "name": "bearai-markdown",
-  "version": "0.2.8",
+  "version": "0.1.0",
   "description": "BearAI Markdown（熊智 Markdown）本地 Markdown 阅读、编辑与文件夹浏览工具",
   "type": "module",
   "scripts": {

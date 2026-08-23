@@ -180,8 +180,8 @@
       tabindex="0"
       onkeydown={(e) => e.key === 'Enter' && tabStore.goHome()}
     >
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M2 6.5L7 2l5 4.5V12H9V9H5v3H2V6.5z"/>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 8.6 10 3l7 5.6v7.7a.7.7 0 0 1-.7.7h-4.1v-5H7.8v5H3.7a.7.7 0 0 1-.7-.7V8.6Z"/>
       </svg>
     </div>
 
@@ -298,7 +298,9 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 7px 14px;
+    height: 38px;
+    padding: 0 14px;
+    box-sizing: border-box;
     font-size: 12px;
     color: #5f6368;
     background: transparent;
@@ -351,12 +353,16 @@
 
   /* Home tab */
   .home-tab {
-    min-width: auto;
-    padding: 7px 10px;
+    min-width: 44px;
+    width: 44px;
+    padding: 0;
+    justify-content: center;
     flex-shrink: 0;
   }
 
   .home-tab svg {
+    width: 19px;
+    height: 19px;
     flex-shrink: 0;
   }
 

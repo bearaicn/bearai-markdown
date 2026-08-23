@@ -1,7 +1,5 @@
 <div align="center">
 
-[简体中文](README.md) | [English](README.en.md)
-
 # BearAI Markdown
 
 ### 熊智 Markdown
@@ -15,7 +13,7 @@ Open local Markdown files and knowledge-base folders, then read, edit, search, a
 ![Windows](https://img.shields.io/badge/Windows-supported-blue?style=flat-square&logo=windows)
 [![Built with Tauri](https://img.shields.io/badge/Built_with-Tauri-FFC131?style=flat-square&logo=tauri)](https://tauri.app)
 
-[GitHub](https://github.com/bearaicn/bearai-markdown) · [Gitee](https://gitee.com/bearaicn/bearai-markdown)
+[GitHub](https://github.com/bearaicn/bearai-markdown) · [Gitee](https://gitee.com/bearaicn/bearai-markdown) · [简体中文](README.md) | English
 
 </div>
 

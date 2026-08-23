@@ -1,5 +1,7 @@
 <div align="center">
 
+[简体中文](README.md) | [English](README.en.md)
+
 # 熊智 Markdown
 
 ### BearAI Markdown
@@ -247,8 +249,7 @@ BearAI Markdown 不是对上游来源的重新署名，而是在开放源码授�
 - 对功能改动提供测试、构建或真实桌面验收证据。
 - 将通用的上游缺陷修复与 BearAI Markdown 专属功能尽量分开提交。
 
-现有详细开发约定可参考 [CONTRIBUTING.md](CONTRIBUTING.md)，其中仍有部分上游仓库信息，
-将在独立仓库地址确定后继续更新。
+详细开发约定请参考 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 许可证
 

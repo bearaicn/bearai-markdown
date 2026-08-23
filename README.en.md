@@ -135,37 +135,36 @@ established reading and editing experience.
 
 ## Screenshots
 
-The images currently stored in this repository come from upstream MDHero and document the
-rendering foundation from which the project evolved. BearAI Markdown now has a custom title
-bar, folder panel, and different branding. These images will be replaced with current product
-screenshots before the first formal release.
+The following screenshots come from the current BearAI Markdown desktop application. They use
+an isolated showcase document to demonstrate the workspace, rendering features, and reading
+layout without exposing any user knowledge-base data.
 
 <table>
 <tr>
-<td><img src=".github/assets/hero-light.png" alt="MDHero upstream light interface"></td>
-<td><img src=".github/assets/hero-dark.png" alt="MDHero upstream dark interface"></td>
+<td><img src=".github/assets/hero-light.png" alt="BearAI Markdown light workspace"></td>
+<td><img src=".github/assets/hero-dark.png" alt="BearAI Markdown dark workspace"></td>
 </tr>
 <tr>
-<td align="center"><em>Upstream light interface reference</em></td>
-<td align="center"><em>Upstream dark interface reference</em></td>
+<td align="center"><em>Light workspace: folder, document, and TOC</em></td>
+<td align="center"><em>Dark workspace: folder, document, and TOC</em></td>
 </tr>
 </table>
 
 ### Syntax highlighting
 
-<img src=".github/assets/syntax-highlighting.png" alt="MDHero upstream syntax highlighting" width="800">
+<img src=".github/assets/syntax-highlighting.png" alt="BearAI Markdown syntax highlighting" width="800">
 
 ### KaTeX math rendering
 
-<img src=".github/assets/math-katex.png" alt="MDHero upstream KaTeX rendering" width="800">
+<img src=".github/assets/math-katex.png" alt="BearAI Markdown KaTeX math rendering" width="800">
 
 ### Mermaid diagrams
 
-<img src=".github/assets/mermaid-flowchart.png" alt="MDHero upstream Mermaid rendering" width="800">
+<img src=".github/assets/mermaid-flowchart.png" alt="BearAI Markdown Mermaid diagram rendering" width="800">
 
-### Zen mode
+### Focused reading layout
 
-<img src=".github/assets/mermaid-zen.png" alt="MDHero upstream zen mode" width="800">
+<img src=".github/assets/mermaid-zen.png" alt="BearAI Markdown focused reading layout with the folder and TOC panels hidden" width="800">
 
 ## Installation
 

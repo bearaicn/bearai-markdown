@@ -126,35 +126,35 @@ BearAI Markdown 因此不是单纯更换名称和图标，而是围绕这三个�
 
 ## 界面截图
 
-当前仓库中的下列图片来自上游 MDHero，用于说明原始渲染能力和项目演进基础；BearAI Markdown 的
-自定义标题栏、文件夹面板和品牌界面已经发生变化，正式发布前将替换为当前产品截图。
+以下截图来自当前 BearAI Markdown 桌面应用，使用隔离的示例文档演示工作区、渲染能力和阅读布局，
+不包含用户知识库数据。
 
 <table>
 <tr>
-<td><img src=".github/assets/hero-light.png" alt="MDHero upstream light interface"></td>
-<td><img src=".github/assets/hero-dark.png" alt="MDHero upstream dark interface"></td>
+<td><img src=".github/assets/hero-light.png" alt="BearAI Markdown 浅色工作区"></td>
+<td><img src=".github/assets/hero-dark.png" alt="BearAI Markdown 深色工作区"></td>
 </tr>
 <tr>
-<td align="center"><em>上游亮色界面参考</em></td>
-<td align="center"><em>上游深色界面参考</em></td>
+<td align="center"><em>浅色工作区：文件夹、文档与目录</em></td>
+<td align="center"><em>深色工作区：文件夹、文档与目录</em></td>
 </tr>
 </table>
 
 ### 代码高亮
 
-<img src=".github/assets/syntax-highlighting.png" alt="MDHero upstream syntax highlighting" width="800">
+<img src=".github/assets/syntax-highlighting.png" alt="BearAI Markdown 代码高亮" width="800">
 
 ### KaTeX 数学公式
 
-<img src=".github/assets/math-katex.png" alt="MDHero upstream KaTeX rendering" width="800">
+<img src=".github/assets/math-katex.png" alt="BearAI Markdown KaTeX 数学公式渲染" width="800">
 
 ### Mermaid 图表
 
-<img src=".github/assets/mermaid-flowchart.png" alt="MDHero upstream Mermaid rendering" width="800">
+<img src=".github/assets/mermaid-flowchart.png" alt="BearAI Markdown Mermaid 流程图渲染" width="800">
 
-### 专注阅读
+### 专注阅读布局
 
-<img src=".github/assets/mermaid-zen.png" alt="MDHero upstream zen mode" width="800">
+<img src=".github/assets/mermaid-zen.png" alt="BearAI Markdown 隐藏文件夹和目录面板后的专注阅读布局" width="800">
 
 ## 安装
 

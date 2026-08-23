@@ -43,6 +43,32 @@ BearAI Markdown brings these tasks into a straightforward local desktop tool:
 
 Markdown remains in the product name because it accurately describes the primary format and purpose of the tool.
 
+## Why continue from MDHero
+
+MDHero already provides a reliable foundation for Markdown reading and lightweight editing,
+including the desktop application structure, rendering pipeline, multiple tabs, search, syntax
+highlighting, math, Mermaid, file watching, and saving changes back to the original file. BearAI
+Markdown builds on that work to reuse and respect proven capabilities, while concentrating effort
+on concrete gaps in its own workflow instead of rebuilding a Markdown engine from scratch.
+
+The MDHero upstream baseline used to start this project had three important limitations for a
+personal knowledge-base workflow:
+
+1. **No folder workspace** — the original application primarily worked with individual files,
+   recent files, and fixed folder entry points. It could not open an arbitrary knowledge-base
+   folder as a persistent hierarchical browser, and it had no recent-folders workflow.
+2. **No multilingual application UI** — interface text was primarily English, with no language
+   switcher and no centralized, configurable locale resources for users or contributors to extend.
+3. **No collapsible TOC hierarchy** — the table of contents could navigate to headings, but its
+   entries were presented as a flat list. Parent and child headings could not be collapsed, and
+   users could not choose the default expansion depth when opening a document.
+
+BearAI Markdown is therefore more than a rename and icon replacement. It independently adds a
+folder workspace and recent folders, Chinese and English UI backed by extensible locale resources,
+and a hierarchical TOC with per-branch collapsing and configurable default depth. These additions
+make the tool better suited to opening a local Markdown knowledge base while preserving MDHero's
+established reading and editing experience.
+
 ## Features
 
 ### Folders and local knowledge bases

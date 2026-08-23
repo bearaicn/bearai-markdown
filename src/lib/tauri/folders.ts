@@ -12,6 +12,13 @@ export interface DirectoryEntry {
   hasChildren?: boolean;
 }
 
+export interface WorkspaceSearchResult {
+  path: string;
+  relativePath: string;
+  line: number;
+  preview: string;
+}
+
 export function folderName(path: string): string {
   const normalized = path.replace(/\\/g, "/").replace(/\/+$/, "");
   return normalized.split("/").pop() || normalized;
@@ -19,6 +26,10 @@ export function folderName(path: string): string {
 
 export async function listDirectory(root: string, directory = root): Promise<DirectoryEntry[]> {
   return invoke<DirectoryEntry[]>("list_directory", { root, directory });
+}
+
+export async function searchWorkspaceMarkdown(root: string, query: string): Promise<WorkspaceSearchResult[]> {
+  return invoke<WorkspaceSearchResult[]>("search_workspace_markdown", { root, query });
 }
 
 export async function openFolder(path?: string): Promise<boolean> {

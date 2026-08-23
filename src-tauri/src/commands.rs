@@ -266,6 +266,15 @@ pub struct DirectoryEntry {
     pub has_children: Option<bool>,
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceSearchResult {
+    pub path: String,
+    pub relative_path: String,
+    pub line: usize,
+    pub preview: String,
+}
+
 fn is_ignored_directory(name: &str) -> bool {
     name.starts_with('.')
         || matches!(
@@ -284,6 +293,91 @@ fn is_markdown_path(path: &Path) -> bool {
             )
         })
         .unwrap_or(false)
+}
+
+const MAX_WORKSPACE_SEARCH_RESULTS: usize = 200;
+
+fn search_markdown_directory(
+    root: &Path,
+    directory: &Path,
+    query_lower: &str,
+    results: &mut Vec<WorkspaceSearchResult>,
+) {
+    if results.len() >= MAX_WORKSPACE_SEARCH_RESULTS {
+        return;
+    }
+
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        if results.len() >= MAX_WORKSPACE_SEARCH_RESULTS {
+            break;
+        }
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if path.is_dir() {
+            if is_ignored_directory(&name) {
+                continue;
+            }
+            // Canonicalising every directory keeps symlinks from escaping the
+            // workspace boundary while still allowing ordinary nested folders.
+            if let Ok(canonical) = fs::canonicalize(&path) {
+                if canonical.starts_with(root) {
+                    search_markdown_directory(root, &canonical, query_lower, results);
+                }
+            }
+        } else if path.is_file() && is_markdown_path(&path) {
+            let Ok(content) = fs::read_to_string(&path) else {
+                continue;
+            };
+            for (line_index, line) in content.lines().enumerate() {
+                if line.to_lowercase().contains(query_lower) {
+                    results.push(WorkspaceSearchResult {
+                        path: path.to_string_lossy().to_string(),
+                        relative_path: path
+                            .strip_prefix(root)
+                            .unwrap_or(&path)
+                            .to_string_lossy()
+                            .to_string(),
+                        line: line_index + 1,
+                        preview: line.trim().chars().take(180).collect(),
+                    });
+                    break;
+                }
+            }
+        }
+    }
+}
+
+/// Search the contents of Markdown files below the opened workspace. One
+/// result is returned per matching file, capped to keep very large workspaces
+/// responsive. Hidden/build dependency directories follow the tree rules.
+#[tauri::command]
+pub fn search_workspace_markdown(
+    root: String,
+    query: String,
+) -> Result<Vec<WorkspaceSearchResult>, String> {
+    let query = query.trim().to_lowercase();
+    if query.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let root_path =
+        fs::canonicalize(&root).map_err(|e| format!("Cannot open folder '{}': {}", root, e))?;
+    if !root_path.is_dir() {
+        return Err(format!("Not a folder: {}", root));
+    }
+
+    let mut results = Vec::new();
+    search_markdown_directory(&root_path, &root_path, &query, &mut results);
+    results.sort_by(|a, b| {
+        a.relative_path
+            .to_lowercase()
+            .cmp(&b.relative_path.to_lowercase())
+    });
+    Ok(results)
 }
 
 fn directory_has_visible_children(directory: &Path) -> bool {
@@ -363,7 +457,7 @@ pub fn list_directory(root: String, directory: String) -> Result<Vec<DirectoryEn
 
 #[cfg(test)]
 mod directory_tests {
-    use super::list_directory;
+    use super::{list_directory, search_workspace_markdown};
     use std::{
         fs,
         time::{SystemTime, UNIX_EPOCH},
@@ -417,6 +511,37 @@ mod directory_tests {
         assert!(result.is_err());
 
         fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn searches_markdown_contents_recursively_and_ignores_other_files() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("mdhero-search-test-{suffix}"));
+        let child = root.join("docs");
+        let ignored = root.join("node_modules");
+        fs::create_dir_all(&child).unwrap();
+        fs::create_dir_all(&ignored).unwrap();
+        fs::write(root.join("README.md"), "# Root\nSearch Needle here").unwrap();
+        fs::write(child.join("nested.markdown"), "another NEEDLE result").unwrap();
+        fs::write(child.join("plain.txt"), "needle in text").unwrap();
+        fs::write(ignored.join("dependency.md"), "needle in dependency").unwrap();
+
+        let results =
+            search_workspace_markdown(root.to_string_lossy().to_string(), "needle".to_string())
+                .unwrap();
+
+        assert_eq!(results.len(), 2);
+        assert!(results
+            .iter()
+            .any(|result| result.relative_path.ends_with("README.md") && result.line == 2));
+        assert!(results
+            .iter()
+            .any(|result| result.relative_path.ends_with("nested.markdown") && result.line == 1));
+
+        fs::remove_dir_all(&root).unwrap();
     }
 }
 

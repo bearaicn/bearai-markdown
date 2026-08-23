@@ -85,6 +85,7 @@ pub fn run() {
             commands::list_claude_plans,
             commands::list_folder_md_files,
             commands::list_directory,
+            commands::search_workspace_markdown,
             commands::quit_app,
             commands::show_ai_context_menu,
             watcher::start_watching,

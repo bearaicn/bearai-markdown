@@ -3,11 +3,14 @@
   import { newDocument } from "$lib/tauri/files";
   import { copyPath } from "$lib/utils/clipboard";
   import { messages } from "$lib/i18n";
+  import { onMount } from "svelte";
 
   let {
     onCloseTab = (id: string) => tabStore.closeTab(id),
+    onCloseTabs = async (ids: string[]) => { for (const id of ids) tabStore.closeTab(id); return true; },
   }: {
-    onCloseTab?: (id: string) => void;
+    onCloseTab?: (id: string) => void | Promise<boolean>;
+    onCloseTabs?: (ids: string[]) => Promise<boolean>;
   } = $props();
 
   const { tabs, activeTabId } = tabStore;
@@ -16,6 +19,27 @@
   let contextMenuTab = $state<Tab | null>(null);
   let contextMenuPos = $state({ x: 0, y: 0 });
   let copyFeedback = $state("");
+  let filesElement = $state<HTMLDivElement>();
+  let tabsOverflow = $state(false);
+  let overflowMenuOpen = $state(false);
+  let overflowMenuPos = $state({ x: 0, y: 0 });
+
+  function updateOverflow() {
+    tabsOverflow = !!filesElement && filesElement.scrollWidth > filesElement.clientWidth + 1;
+    if (!tabsOverflow) overflowMenuOpen = false;
+  }
+
+  onMount(() => {
+    const observer = new ResizeObserver(updateOverflow);
+    if (filesElement) observer.observe(filesElement);
+    updateOverflow();
+    return () => observer.disconnect();
+  });
+
+  $effect(() => {
+    $tabs;
+    requestAnimationFrame(updateOverflow);
+  });
 
   function handleClose(e: MouseEvent, id: string) {
     e.stopPropagation();
@@ -91,13 +115,45 @@
   }
 
   function handleContextMenu(e: MouseEvent, tab: Tab) {
-    if (!isFileTab(tab)) return;
     e.preventDefault();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const menuWidth = 160;
     contextMenuPos = { x: Math.min(rect.left, window.innerWidth - menuWidth - 8), y: rect.bottom + 4 };
     contextMenuTab = tab;
+    overflowMenuOpen = false;
     copyFeedback = "";
+  }
+
+  function toggleOverflowMenu(e: MouseEvent) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const menuWidth = 260;
+    overflowMenuPos = { x: Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8)), y: rect.bottom + 4 };
+    overflowMenuOpen = !overflowMenuOpen;
+    contextMenuTab = null;
+  }
+
+  function selectOverflowTab(id: string) {
+    tabStore.switchTab(id);
+    overflowMenuOpen = false;
+  }
+
+  async function closeCurrentFromMenu() {
+    const id = contextMenuTab?.id;
+    closeContextMenu();
+    if (id) await onCloseTab(id);
+  }
+
+  async function closeOtherFromMenu() {
+    const keepId = contextMenuTab?.id;
+    const ids = $tabs.filter((tab) => tab.id !== keepId).map((tab) => tab.id);
+    closeContextMenu();
+    await onCloseTabs(ids);
+  }
+
+  async function closeAllFromMenu() {
+    const ids = $tabs.map((tab) => tab.id);
+    closeContextMenu();
+    await onCloseTabs(ids);
   }
 
   function closeContextMenu() {
@@ -130,7 +186,7 @@
     </div>
 
     <!-- File tabs -->
-    <div class="tabbar-files">
+    <div class="tabbar-files" bind:this={filesElement}>
       {#each $tabs as tab, idx (tab.id)}
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
@@ -159,6 +215,12 @@
       {/each}
     </div>
 
+    {#if tabsOverflow}
+      <button class="more-tabs-btn" class:active={overflowMenuOpen} onclick={toggleOverflowMenu} title={$messages.moreTabs} aria-label={$messages.moreTabs} aria-expanded={overflowMenuOpen}>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
+      </button>
+    {/if}
+
     <!-- New tab button -->
     <button class="new-tab-btn" onclick={handleNewTab} title={$messages.newTab}>
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
@@ -173,9 +235,26 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="fixed inset-0 z-[9]" onclick={closeContextMenu} onkeydown={() => {}}></div>
   <div class="dropdown" style="left: {contextMenuPos.x}px; top: {contextMenuPos.y}px;">
-    <button onclick={handleCopyPath} class="dropdown-item">
-      <span>{copyFeedback || $messages.copyPath}</span>
-    </button>
+    <button onclick={closeCurrentFromMenu} class="dropdown-item"><span>{$messages.closeCurrentTab}</span></button>
+    <button onclick={closeOtherFromMenu} class="dropdown-item" disabled={$tabs.length <= 1}><span>{$messages.closeOtherTabs}</span></button>
+    <button onclick={closeAllFromMenu} class="dropdown-item"><span>{$messages.closeAllTabs}</span></button>
+    {#if isFileTab(contextMenuTab)}
+      <div class="dropdown-separator"></div>
+      <button onclick={handleCopyPath} class="dropdown-item"><span>{copyFeedback || $messages.copyPath}</span></button>
+    {/if}
+  </div>
+{/if}
+
+{#if overflowMenuOpen}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="fixed inset-0 z-[9]" onclick={() => (overflowMenuOpen = false)} onkeydown={() => {}}></div>
+  <div class="dropdown overflow-dropdown" style="left: {overflowMenuPos.x}px; top: {overflowMenuPos.y}px;">
+    {#each $tabs as tab (tab.id)}
+      <button class="dropdown-item overflow-item" class:current={$activeTabId === tab.id} onclick={() => selectOverflowTab(tab.id)} title={tab.filePath}>
+        <span class="overflow-check">{$activeTabId === tab.id ? "✓" : ""}</span>
+        <span class="overflow-name">{#if tab.dirty}<span class="tab-dirty">•</span>{/if}{tab.fileName}</span>
+      </button>
+    {/each}
   </div>
 {/if}
 
@@ -186,7 +265,7 @@
     z-index: 15;
     background: #dee1e6;
     padding: 6px 8px 0;
-    overflow-x: auto;
+    overflow: hidden;
   }
 
   :global(html.dark) .tabbar {
@@ -201,13 +280,19 @@
     display: flex;
     align-items: flex-end;
     gap: 2px;
+    min-width: 0;
   }
 
   .tabbar-files {
     display: flex;
     align-items: flex-end;
     gap: 2px;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
   }
+
+  .tabbar-files .tab { flex: 0 0 auto; }
 
   .tab {
     display: flex;
@@ -337,6 +422,11 @@
     transition: background 0.12s, color 0.12s;
   }
 
+  .more-tabs-btn { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; margin: 0 0 2px 2px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #717177; cursor: pointer; }
+  .more-tabs-btn:hover, .more-tabs-btn.active { background: rgba(255,255,255,.58); color: #0891b2; }
+  .more-tabs-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  :global(html.dark) .more-tabs-btn:hover, :global(html.dark) .more-tabs-btn.active { background: rgba(255,255,255,.08); color: #22d3ee; }
+
   .new-tab-btn:hover {
     background: rgba(255, 255, 255, 0.5);
     color: #0891B2;
@@ -386,6 +476,16 @@
   .dropdown-item:hover {
     background: #f2f2f7;
   }
+  .dropdown-item:disabled { opacity: .42; cursor: default; }
+  .dropdown-item:disabled:hover { background: transparent; }
+  .dropdown-separator { height: 1px; margin: 4px 6px; background: #e5e5e5; }
+  :global(html.dark) .dropdown-separator { background: #444448; }
+  .overflow-dropdown { width: 260px; max-height: min(420px, calc(100vh - 100px)); overflow-y: auto; }
+  .overflow-item { gap: 7px; }
+  .overflow-item.current { color: #087d98; background: #eef9fb; }
+  :global(html.dark) .overflow-item.current { color: #67d7e9; background: #17343a; }
+  .overflow-check { width: 13px; flex: 0 0 13px; text-align: center; }
+  .overflow-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   :global(html.dark) .dropdown-item:hover {
     background: #3a3a3c;

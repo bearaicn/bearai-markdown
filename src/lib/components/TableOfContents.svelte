@@ -56,7 +56,7 @@
         <div class="toc-row" class:active={$activeHeadingId === item.entry.id} style="padding-left: {getIndent(item.entry.level)}">
           {#if hasChildren(item.index)}
             <button class="toc-toggle" onclick={() => toggleCollapsed(item.entry.id)} aria-label={collapsed.has(item.entry.id) ? 'Expand' : 'Collapse'} aria-expanded={!collapsed.has(item.entry.id)}>
-              <span class:collapsed={collapsed.has(item.entry.id)}>⌄</span>
+              <svg class:collapsed={collapsed.has(item.entry.id)} viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 3.75 10 8l-4.5 4.25" /></svg>
             </button>
           {:else}
             <span class="toc-toggle-spacer"></span>
@@ -159,8 +159,8 @@
   .toc-toggle, .toc-toggle-spacer { width: 22px; height: 24px; flex: 0 0 22px; display: grid; place-items: center; }
   .toc-toggle { border: 0; padding: 0; background: transparent; color: #8e8e93; cursor: pointer; border-radius: 4px; }
   .toc-toggle:hover { background: rgba(8,145,178,.1); color: #0891b2; }
-  .toc-toggle span { display: block; transition: transform .15s ease; }
-  .toc-toggle span.collapsed { transform: rotate(-90deg); }
+  .toc-toggle svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; transform: rotate(90deg); transition: transform .15s ease; transform-origin: center; }
+  .toc-toggle svg.collapsed { transform: rotate(0deg); }
 
   @media print {
     .toc-sidebar { display: none !important; }

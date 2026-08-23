@@ -475,6 +475,29 @@
     return true;
   }
 
+  async function handleCloseTabs(ids: string[]): Promise<boolean> {
+    const idSet = new Set(ids);
+    const targets = $tabs.filter((tab) => idSet.has(tab.id));
+    if (targets.length === 0) return false;
+    const dirty = targets.filter((tab) => tab.dirty);
+    if (dirty.length > 0) {
+      const { ask } = await import("@tauri-apps/plugin-dialog");
+      const message = dirty.length === 1
+        ? `You have unsaved changes to ${dirty[0].fileName}.`
+        : `You have unsaved changes in ${dirty.length} documents.`;
+      const keepEditing = await ask(message, {
+        title: "Unsaved changes",
+        kind: "warning",
+        okLabel: "Keep Editing",
+        cancelLabel: "Discard",
+      });
+      if (keepEditing) return false;
+    }
+    if (targets.some((tab) => tab.id === $activeTabId)) saveProgressNow();
+    for (const tab of targets) tabStore.closeTab(tab.id);
+    return true;
+  }
+
   // Close-on-ESC: close the active file tab, and quit the app if it was the last
   // one (on macOS closing the window alone leaves the app in the dock). Async
   // because the dirty-confirm dialog is — a cancelled discard must not quit.
@@ -1079,7 +1102,7 @@
       onCloseActive={() => activeTab && handleCloseTab(activeTab.id)}
       onCheckUpdates={() => (window as any).__mdhero_check_updates?.()}
     />
-    <TabBar onCloseTab={handleCloseTab} />
+    <TabBar onCloseTab={handleCloseTab} onCloseTabs={handleCloseTabs} />
   {/if}
   {#if !zenMode && !presenting && !activeTab?.isEditing}
     <FolderSidebar />

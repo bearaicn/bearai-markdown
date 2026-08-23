@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src=".github/assets/bearai-markdown-hero.png" alt="BearAI Markdown — Local Markdown Reader, Editor and Knowledge Workspace" width="100%">
+
 # BearAI Markdown
 
 ### 熊智 Markdown

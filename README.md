@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src=".github/assets/bearai-markdown-hero.png" alt="熊智 Markdown — 本地 Markdown 阅读、编辑与知识库工作区" width="100%">
+
 # 熊智 Markdown
 
 ### BearAI Markdown

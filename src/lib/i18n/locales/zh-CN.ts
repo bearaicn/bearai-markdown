@@ -39,8 +39,17 @@ const zh: Record<keyof typeof en, string> = {
   refreshFolder: "刷新文件夹",
   openAnotherFolder: "打开其他文件夹",
   closeFolder: "关闭文件夹",
+  searchFolder: "搜索当前目录中的 Markdown 内容",
+  searchingFolder: "正在搜索…",
+  noSearchResults: "没有找到匹配的 Markdown 文件",
+  searchResultCount: "个匹配文件",
+  searchFailed: "无法搜索当前文件夹",
   newTab: "新建标签页",
   copyPath: "复制路径",
+  moreTabs: "查看更多已打开文档",
+  closeCurrentTab: "关闭当前文档",
+  closeOtherTabs: "关闭其他所有文档",
+  closeAllTabs: "关闭所有文档",
 };
 
 export default zh;

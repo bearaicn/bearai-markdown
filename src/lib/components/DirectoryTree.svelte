@@ -73,7 +73,11 @@
         title={entry.path}
         onclick={() => toggle(entry)}
       >
-        <span class="chevron">{entry.kind === "folder" ? (expanded ? "⌄" : "›") : ""}</span>
+        <span class="chevron" class:expanded aria-hidden="true">
+          {#if entry.kind === "folder"}
+            <svg viewBox="0 0 16 16"><path d="M5.5 3.75 10 8l-4.5 4.25" /></svg>
+          {/if}
+        </span>
         <span class:folder-icon={entry.kind === "folder"} class:file-icon={entry.kind === "file"} aria-hidden="true">{entry.kind === "folder" ? "▰" : "▤"}</span>
         <span class="entry-name">{entry.name}</span>
       </button>
@@ -96,7 +100,9 @@
   :global(html.dark) .tree-row { color: #d1d1d6; }
   :global(html.dark) .tree-row:hover { background: #29292d; }
   :global(html.dark) .tree-row.selected { background: #123944; color: #8ad8e8; }
-  .chevron { width: 10px; flex: 0 0 10px; color: #8e8e93; font-size: 15px; text-align: center; }
+  .chevron { width: 14px; height: 18px; flex: 0 0 14px; display: grid; place-items: center; color: #8e8e93; }
+  .chevron svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s ease; transform-origin: center; }
+  .chevron.expanded svg { transform: rotate(90deg); }
   .folder-icon { color: #c58b2a; font-size: 11px; }
   .file-icon { color: #7b7b82; font-size: 11px; }
   .entry-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

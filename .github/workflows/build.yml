@@ -24,6 +24,11 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
+    env:
+      HAS_APPLE_SIGNING: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' && secrets.APPLE_SIGNING_IDENTITY != '' }}
+      HAS_APPLE_NOTARIZATION: ${{ secrets.APPLE_ID != '' && secrets.APPLE_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
+      HAS_UPDATER_SIGNING: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -50,7 +55,7 @@ jobs:
       # repo's secrets, and same-repo PRs don't need to produce signed
       # artifacts — they just need to verify the code compiles.
       - name: Import Apple certificate
-        if: matrix.platform == 'macos-latest' && github.event_name != 'pull_request'
+        if: matrix.platform == 'macos-latest' && github.event_name != 'pull_request' && env.HAS_APPLE_SIGNING == 'true'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -78,7 +83,7 @@ jobs:
       # notarization entirely." On non-PR events the secrets land in env
       # normally and Tauri performs the full notarize-then-staple flow.
       - name: Configure notarization credentials
-        if: matrix.platform == 'macos-latest' && github.event_name != 'pull_request'
+        if: matrix.platform == 'macos-latest' && github.event_name != 'pull_request' && env.HAS_APPLE_SIGNING == 'true' && env.HAS_APPLE_NOTARIZATION == 'true'
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -102,7 +107,7 @@ jobs:
           # they're populated via $GITHUB_ENV in the previous step only on
           # non-PR events. See the comment on that step for why empty strings
           # don't work as a "skip notarization" signal.
-          APPLE_SIGNING_IDENTITY: ${{ matrix.platform == 'macos-latest' && (github.event_name == 'pull_request' && '-' || secrets.APPLE_SIGNING_IDENTITY) || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ matrix.platform == 'macos-latest' && (env.HAS_APPLE_SIGNING == 'true' && secrets.APPLE_SIGNING_IDENTITY || '-') || '' }}
           # Updater signing key — present only on non-PR builds (fork PRs can't
           # access secrets). createUpdaterArtifacts is enabled via the release
           # config overlay below, also non-PR only, so the two always line up:
@@ -116,7 +121,7 @@ jobs:
           # bundle.createUpdaterArtifacts (signed .tar.gz/.sig + latest.json).
           # Kept out of the base config so PR builds don't try to sign updater
           # artifacts without a key.
-          args: ${{ github.event_name != 'pull_request' && '--config src-tauri/tauri.release.conf.json' || '' }}
+          args: ${{ github.event_name != 'pull_request' && env.HAS_UPDATER_SIGNING == 'true' && '--config src-tauri/tauri.release.conf.json' || '' }}
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
           releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('BearAI Markdown {0}', github.ref_name) || '' }}
           releaseBody: |
@@ -129,7 +134,7 @@ jobs:
           prerelease: false
 
       - name: Clean up keychain
-        if: always() && matrix.platform == 'macos-latest' && github.event_name != 'pull_request'
+        if: always() && matrix.platform == 'macos-latest' && github.event_name != 'pull_request' && env.HAS_APPLE_SIGNING == 'true'
         run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
 
       - name: Upload artifacts

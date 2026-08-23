@@ -2,6 +2,7 @@
   import { tabStore, HOME_TAB_ID, type Tab } from "$lib/stores/tabs";
   import { newDocument } from "$lib/tauri/files";
   import { copyPath } from "$lib/utils/clipboard";
+  import { revealInFileExplorer } from "$lib/tauri/folders";
   import { messages } from "$lib/i18n";
   import { onMount } from "svelte";
 
@@ -167,6 +168,12 @@
     copyFeedback = success ? "Copied!" : "Failed";
     setTimeout(closeContextMenu, 900);
   }
+
+  async function handleRevealInExplorer() {
+    const path = contextMenuTab?.filePath;
+    closeContextMenu();
+    if (path) await revealInFileExplorer(path);
+  }
 </script>
 
 <div class="tabbar">
@@ -240,6 +247,7 @@
     <button onclick={closeAllFromMenu} class="dropdown-item"><span>{$messages.closeAllTabs}</span></button>
     {#if isFileTab(contextMenuTab)}
       <div class="dropdown-separator"></div>
+      <button onclick={handleRevealInExplorer} class="dropdown-item"><span>{$messages.revealInFileExplorer}</span></button>
       <button onclick={handleCopyPath} class="dropdown-item"><span>{copyFeedback || $messages.copyPath}</span></button>
     {/if}
   </div>

@@ -32,6 +32,15 @@ export async function searchWorkspaceMarkdown(root: string, query: string): Prom
   return invoke<WorkspaceSearchResult[]>("search_workspace_markdown", { root, query });
 }
 
+export async function renameDirectoryEntry(root: string, path: string, newName: string): Promise<string> {
+  return invoke<string>("rename_directory_entry", { root, path, newName });
+}
+
+export async function revealInFileExplorer(path: string): Promise<void> {
+  const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
+  await revealItemInDir(path);
+}
+
 export async function openFolder(path?: string): Promise<boolean> {
   const selected = path ?? await open({ directory: true, multiple: false });
   if (!selected || typeof selected !== "string") return false;

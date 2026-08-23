@@ -191,6 +191,17 @@ function createTabStore() {
     );
   }
 
+  function renamePaths(oldPath: string, newPath: string, isDirectory: boolean) {
+    const oldNormalized = oldPath.replace(/\//g, "\\").replace(/\\+$/, "");
+    tabs.update((ts) => ts.map((tab) => {
+      const current = tab.filePath.replace(/\//g, "\\");
+      if (current !== oldNormalized && !(isDirectory && current.startsWith(`${oldNormalized}\\`))) return tab;
+      const filePath = `${newPath}${current.slice(oldNormalized.length)}`;
+      const fileName = filePath.replace(/\\/g, "/").split("/").pop() || tab.fileName;
+      return { ...tab, filePath, fileName };
+    }));
+  }
+
   return {
     tabs,
     activeTabId,
@@ -206,6 +217,7 @@ function createTabStore() {
     markSaved,
     getLastSavedAt,
     rebindPath,
+    renamePaths,
     saveScrollPosition,
   };
 }

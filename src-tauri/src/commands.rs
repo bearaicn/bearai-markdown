@@ -455,9 +455,73 @@ pub fn list_directory(root: String, directory: String) -> Result<Vec<DirectoryEn
     Ok(result)
 }
 
+fn validate_entry_name(name: &str) -> Result<&str, String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() || trimmed == "." || trimmed == ".." {
+        return Err("Name cannot be empty".into());
+    }
+    if trimmed != name || trimmed.ends_with('.') {
+        return Err("Name cannot start or end with spaces or end with a dot".into());
+    }
+    if trimmed
+        .chars()
+        .any(|c| c.is_control() || "<>:\"/\\|?*".contains(c))
+    {
+        return Err("Name contains characters that Windows does not allow".into());
+    }
+    let stem = trimmed
+        .split('.')
+        .next()
+        .unwrap_or(trimmed)
+        .to_ascii_uppercase();
+    if matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || (stem.len() == 4
+            && (stem.starts_with("COM") || stem.starts_with("LPT"))
+            && stem.as_bytes()[3].is_ascii_digit()
+            && stem.as_bytes()[3] != b'0')
+    {
+        return Err("This name is reserved by Windows".into());
+    }
+    Ok(trimmed)
+}
+
+#[tauri::command]
+pub fn rename_directory_entry(
+    root: String,
+    path: String,
+    new_name: String,
+) -> Result<String, String> {
+    let root_path =
+        fs::canonicalize(&root).map_err(|e| format!("Cannot open folder '{}': {}", root, e))?;
+    let source = fs::canonicalize(&path).map_err(|e| format!("Cannot find '{}': {}", path, e))?;
+    if source == root_path || !source.starts_with(&root_path) {
+        return Err("Entry is outside the opened workspace or is the workspace root".into());
+    }
+    if !source.is_dir() && !is_markdown_path(&source) {
+        return Err("Only folders and Markdown files can be renamed".into());
+    }
+    let name = validate_entry_name(&new_name)?;
+    let parent = source
+        .parent()
+        .ok_or_else(|| "Entry has no parent folder".to_string())?;
+    let canonical_parent = fs::canonicalize(parent).map_err(|e| e.to_string())?;
+    if !canonical_parent.starts_with(&root_path) {
+        return Err("Destination is outside the opened workspace".into());
+    }
+    let destination = canonical_parent.join(name);
+    if destination == source {
+        return Ok(source.to_string_lossy().to_string());
+    }
+    if destination.exists() {
+        return Err(format!("An entry named '{}' already exists", name));
+    }
+    fs::rename(&source, &destination).map_err(|e| format!("Failed to rename '{}': {}", path, e))?;
+    Ok(destination.to_string_lossy().to_string())
+}
+
 #[cfg(test)]
 mod directory_tests {
-    use super::{list_directory, search_workspace_markdown};
+    use super::{list_directory, rename_directory_entry, search_workspace_markdown};
     use std::{
         fs,
         time::{SystemTime, UNIX_EPOCH},
@@ -541,6 +605,35 @@ mod directory_tests {
             .iter()
             .any(|result| result.relative_path.ends_with("nested.markdown") && result.line == 1));
 
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn renames_entries_and_enforces_guards() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("mdhero-rename-test-{suffix}"));
+        fs::create_dir_all(root.join("docs")).unwrap();
+        fs::write(root.join("draft.md"), "# Draft").unwrap();
+        fs::write(root.join("existing.md"), "# Existing").unwrap();
+        let root_s = root.to_string_lossy().to_string();
+        let source = root.join("draft.md").to_string_lossy().to_string();
+        let renamed =
+            rename_directory_entry(root_s.clone(), source.clone(), "final.md".into()).unwrap();
+        assert!(std::path::Path::new(&renamed).exists());
+        let folder = rename_directory_entry(
+            root_s.clone(),
+            root.join("docs").to_string_lossy().to_string(),
+            "notes".into(),
+        )
+        .unwrap();
+        assert!(std::path::Path::new(&folder).is_dir());
+        assert!(
+            rename_directory_entry(root_s.clone(), renamed.clone(), "../escape.md".into()).is_err()
+        );
+        assert!(rename_directory_entry(root_s, renamed, "existing.md".into()).is_err());
         fs::remove_dir_all(&root).unwrap();
     }
 }

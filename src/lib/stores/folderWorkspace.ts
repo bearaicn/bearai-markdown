@@ -59,4 +59,14 @@ export const folderWorkspace = {
   select(path: string | null) {
     store.update((state) => ({ ...state, selectedPath: path }));
   },
+  renamePaths(oldPath: string, newPath: string) {
+    const oldNormalized = oldPath.replace(/\//g, "\\").replace(/\\+$/, "");
+    const replace = (path: string | null) => {
+      if (!path) return path;
+      const normalized = path.replace(/\//g, "\\");
+      return normalized === oldNormalized || normalized.startsWith(`${oldNormalized}\\`)
+        ? `${newPath}${normalized.slice(oldNormalized.length)}` : path;
+    };
+    store.update((state) => ({ ...state, expandedPaths: state.expandedPaths.map((path) => replace(path) as string), selectedPath: replace(state.selectedPath) }));
+  },
 };

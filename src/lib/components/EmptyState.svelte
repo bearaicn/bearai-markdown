@@ -149,6 +149,10 @@
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 1.5h6l3 3v9H3V1.5z"/><line x1="7.5" y1="6" x2="7.5" y2="11"/><line x1="5" y1="8.5" x2="10" y2="8.5"/></svg>
       New Document
     </button>
+    <button class="qa-btn" onclick={handleOpenFolder}>
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><line x1="7.5" y1="3" x2="7.5" y2="12"/><line x1="3" y1="7.5" x2="12" y2="7.5"/></svg>
+      Open Folder
+    </button>
     <button class="qa-btn" onclick={openFileDialog}>
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 5l3-2.5h9v10H1.5V5z"/><line x1="1.5" y1="5" x2="4.5" y2="5"/></svg>
       Browse Files
@@ -156,10 +160,6 @@
     <button class="qa-btn" onclick={onOpenUrl}>
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7.5" r="5.5"/><ellipse cx="7.5" cy="7.5" rx="2.5" ry="5.5"/><line x1="2" y1="7.5" x2="13" y2="7.5"/></svg>
       Open URL
-    </button>
-    <button class="qa-btn" onclick={handleOpenFolder}>
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><line x1="7.5" y1="3" x2="7.5" y2="12"/><line x1="3" y1="7.5" x2="12" y2="7.5"/></svg>
-      Open Folder
     </button>
   </div>
 
@@ -290,6 +290,8 @@
   .empty-root {
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
+    width: 100%;
     padding: 24px 32px;
     max-width: 1040px;
     margin: 0 auto;

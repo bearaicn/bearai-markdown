@@ -1191,14 +1191,24 @@
     color: #e5e5e7;
   }
 
-  .page-root.folder-open :global(.empty-root),
+  .page-root.folder-open :global(.empty-root) {
+    margin-left: calc(280px + max(0px, (100% - 1320px) / 2));
+    margin-right: 0;
+    width: calc(100% - 280px);
+  }
+
   .page-root.folder-open .content-main,
   .page-root.folder-open .state-center {
     margin-left: 280px;
   }
 
   @media (max-width: 720px) {
-    .page-root.folder-open :global(.empty-root),
+    .page-root.folder-open :global(.empty-root) {
+      margin-left: auto;
+      margin-right: auto;
+      width: 100%;
+    }
+
     .page-root.folder-open .content-main,
     .page-root.folder-open .state-center {
       margin-left: 0;

@@ -2,7 +2,8 @@
   import { onMount } from "svelte";
   import { X } from "@lucide/svelte";
   import { getVersion } from "@tauri-apps/api/app";
-  import appIcon from "$lib/assets/mdhero-icon.png";
+  import appIcon from "$lib/assets/bearai-markdown-icon.png";
+  import { messages } from "$lib/i18n";
 
   let { visible = $bindable(false) }: { visible: boolean } = $props();
   let appVersion = $state("");
@@ -32,7 +33,7 @@
   <div class="dialog-backdrop" onclick={handleBackdropClick} onkeydown={handleKeydown}>
     <div class="dialog">
       <div class="dialog-header">
-        <h2 class="dialog-title">About MDHero</h2>
+        <h2 class="dialog-title">{$messages.about}</h2>
         <button onclick={() => (visible = false)} class="dialog-close" aria-label="Close">
           <X size={16} />
         </button>
@@ -40,18 +41,19 @@
 
       <div class="dialog-body">
         <div class="about-content">
-          <img src={appIcon} class="app-icon" alt="MDHero" width="48" height="48" />
-          <h3 class="app-name">MDHero</h3>
+          <img src={appIcon} class="app-icon" alt={$messages.appName} width="48" height="48" />
+          <h3 class="app-name">{$messages.appName}</h3>
           <p class="app-version">Version {appVersion}</p>
-          <p class="app-description">A beautiful, fast Markdown viewer for your desktop.</p>
+          <p class="app-description">A local Markdown reader, editor, and folder browser.</p>
           <a
             class="app-link"
-            href="https://github.com/vaibhavuk-dev/mdhero"
+            href="https://github.com/bearaicn/bearai-markdown"
             target="_blank"
             rel="noopener noreferrer"
           >
-            github.com/vaibhavuk-dev/mdhero
+            github.com/bearaicn/bearai-markdown
           </a>
+          <a class="app-link upstream-link" href="https://github.com/vaibhavuk-dev/mdhero" target="_blank" rel="noopener noreferrer">Based on MDHero by Vaibhav Kakde (MIT)</a>
         </div>
       </div>
     </div>

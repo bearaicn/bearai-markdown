@@ -118,7 +118,7 @@ jobs:
           # artifacts without a key.
           args: ${{ github.event_name != 'pull_request' && '--config src-tauri/tauri.release.conf.json' || '' }}
           tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
-          releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('MDHero {0}', github.ref_name) || '' }}
+          releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('BearAI Markdown {0}', github.ref_name) || '' }}
           releaseBody: |
             See the full changelog in the [commit history](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}).
 
@@ -136,7 +136,7 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
-          name: mdhero-${{ matrix.name }}
+          name: bearai-markdown-${{ matrix.name }}
           path: |
             src-tauri/target/release/bundle/dmg/*.dmg
             src-tauri/target/release/bundle/macos/*.app

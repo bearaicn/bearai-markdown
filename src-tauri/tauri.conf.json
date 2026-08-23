@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "MDHero",
+  "productName": "熊智 Markdown",
   "version": "0.2.8",
   "identifier": "com.mdhero.app",
   "build": {
@@ -12,12 +12,13 @@
   "app": {
     "windows": [
       {
-        "title": "MDHero",
+        "title": "熊智 Markdown",
         "width": 900,
         "height": 700,
         "minWidth": 400,
         "minHeight": 300,
-        "decorations": true
+        "decorations": false,
+        "shadow": true
       }
     ],
     "security": {
@@ -61,15 +62,6 @@
           "takesValue": true
         }
       ]
-    },
-    "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ4MkY2OUE5MDM5N0ZCQTgKUldTbys1Y0RxV2t2U0d5TUQ5SU42amVWVWlTUGhTRXBydTZnQXNHL0VHNFM4Z2VMazh3Nm9qcDgK",
-      "endpoints": [
-        "https://github.com/vaibhavuk-dev/mdhero/releases/latest/download/latest.json"
-      ],
-      "windows": {
-        "installMode": "passive"
-      }
     }
   }
 }

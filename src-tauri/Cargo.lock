@@ -285,6 +285,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
+name = "bearai-markdown"
+version = "0.2.8"
+dependencies = [
+ "notify",
+ "notify-debouncer-mini",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-cli",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-updater",
+ "tauri-plugin-window-state",
+]
+
+[[package]]
 name = "bit-set"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2253,24 +2271,6 @@ name = "matches"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2532096657941c2fea9c289d370a250971c689d4f143798ff67113ec042024a5"
-
-[[package]]
-name = "mdhero"
-version = "0.2.8"
-dependencies = [
- "notify",
- "notify-debouncer-mini",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-cli",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-updater",
- "tauri-plugin-window-state",
-]
 
 [[package]]
 name = "memchr"

@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Have an idea for MDHero? We'd love to hear it. Please describe the problem you're trying to solve, not just the solution.
+        Have an idea for BearAI Markdown? We'd love to hear it. Please describe the problem you're trying to solve, not just the solution.
 
   - type: textarea
     id: problem

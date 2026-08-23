@@ -3,10 +3,13 @@
   import { settings } from "../stores/settings";
   import { themeMode, cycleTheme } from "../stores/theme";
   import { tocVisible, tocEntries, toggleToc, activeHeadingId } from "../stores/toc";
+  import { folderWorkspace } from "../stores/folderWorkspace";
+  import { messages, locale, availableLocales, setLocale } from "$lib/i18n";
+  import { getCurrentWindow } from "@tauri-apps/api/window";
   import { openFileDialog } from "../tauri/files";
   import { copyAsRichText, copyAsMarkdown } from "../utils/clipboard";
   import ReaderControls from "./ReaderControls.svelte";
-  import brandLogo from "$lib/assets/mdhero-icon.png";
+  import brandLogo from "$lib/assets/bearai-markdown-icon.png";
 
   let {
     onPaste = () => {},
@@ -24,6 +27,12 @@
     canPresent = false,
     presenting = false,
     onTogglePresent = () => {},
+    onNew = () => {},
+    onFind = () => {},
+    onAbout = () => {},
+    onQuit = () => {},
+    onCloseActive = () => {},
+    onCheckUpdates = () => {},
   }: {
     onPaste?: () => void;
     onOpen?: () => void;
@@ -40,6 +49,12 @@
     canPresent?: boolean;
     presenting?: boolean;
     onTogglePresent?: () => void;
+    onNew?: () => void;
+    onFind?: () => void;
+    onAbout?: () => void;
+    onQuit?: () => void;
+    onCloseActive?: () => void;
+    onCheckUpdates?: () => void;
   } = $props();
 
   let currentHeading = $derived(
@@ -50,11 +65,41 @@
 
   let showReaderControls = $state(false);
   let showCopyMenu = $state(false);
+  let showAppMenu = $state(false);
+  let showLanguageMenu = $state(false);
   let copyFeedback = $state("");
+  let maximized = $state(false);
 
   function closeAll() {
     showReaderControls = false;
     showCopyMenu = false;
+    showAppMenu = false;
+    showLanguageMenu = false;
+  }
+
+  function toggleAppMenu() {
+    const next = !showAppMenu;
+    closeAll();
+    showAppMenu = next;
+  }
+
+  function toggleLanguageMenu() {
+    const next = !showLanguageMenu;
+    closeAll();
+    showLanguageMenu = next;
+  }
+
+  async function toggleMaximize() {
+    const win = getCurrentWindow();
+    if (await win.isMaximized()) await win.unmaximize();
+    else await win.maximize();
+    maximized = await win.isMaximized();
+  }
+
+  async function toggleFullscreen() {
+    const win = getCurrentWindow();
+    await win.setFullscreen(!(await win.isFullscreen()));
+    closeAll();
   }
 
   function toggleReaderControls() {
@@ -117,16 +162,37 @@
   }
 </script>
 
-<header class="toolbar">
+<header class="toolbar" role="presentation" data-tauri-drag-region ondblclick={(e) => {
+  if ((e.target as HTMLElement).closest('button, input, .dropdown')) return;
+  toggleMaximize();
+}}>
   <div class="toolbar-left">
-    <img src={brandLogo} alt="MDHero" width="26" height="26" class="toolbar-logo" />
-    <span class="toolbar-wordmark">MDHero</span>
+    <img src={brandLogo} alt={$messages.appName} width="26" height="26" class="toolbar-logo" />
+    <span class="toolbar-wordmark" data-tauri-drag-region>{$messages.appName}</span>
+    <div class="menu-wrap">
+      <button onclick={toggleAppMenu} class="btn app-menu-btn" class:active={showAppMenu} title={$messages.fileMenu} aria-label={$messages.fileMenu}>•••</button>
+      {#if showAppMenu}
+        <div class="dropdown app-menu-dropdown">
+          <button class="dropdown-item" onclick={() => { closeAll(); onNew(); }}><span>{$messages.newDocument}</span><span class="dropdown-hint">Ctrl+N</span></button>
+          <button class="dropdown-item" onclick={() => { closeAll(); onOpen(); }}><span>{$messages.open}</span><span class="dropdown-hint">Ctrl+O</span></button>
+          <button class="dropdown-item" onclick={() => { closeAll(); onFind(); }}><span>{$messages.find}</span><span class="dropdown-hint">Ctrl+F</span></button>
+          <button class="dropdown-item" disabled={!$document.filePath} onclick={() => { closeAll(); onCloseActive(); }}><span>Close tab</span><span class="dropdown-hint">Ctrl+W</span></button>
+          <div class="dropdown-separator"></div>
+          <button class="dropdown-item" onclick={toggleFullscreen}><span>{$messages.fullscreen}</span><span class="dropdown-hint">F11</span></button>
+          <button class="dropdown-item" onclick={() => { closeAll(); onOpenSettings(); }}><span>{$messages.settings}</span><span class="dropdown-hint">Ctrl+,</span></button>
+          <button class="dropdown-item" onclick={() => { closeAll(); onAbout(); }}><span>{$messages.about}</span></button>
+          <button class="dropdown-item" onclick={() => { closeAll(); onCheckUpdates(); }}><span>Check for updates</span></button>
+          <div class="dropdown-separator"></div>
+          <button class="dropdown-item danger" onclick={() => { closeAll(); onQuit(); }}><span>{$messages.quit}</span><span class="dropdown-hint">Ctrl+Q</span></button>
+        </div>
+      {/if}
+    </div>
     <div class="btn-group">
       <button onclick={onOpen} class="btn btn-primary" title="Open file (Cmd+O)">
-        Open
+        {$messages.open}
       </button>
       <button onclick={onPaste} class="btn btn-ghost" title="Paste markdown (Cmd+Shift+V)">
-        Paste
+        {$messages.paste}
       </button>
       <button onclick={onUrl} class="btn btn-ghost" title="Open URL">
         <svg width="18" height="18" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5.5"/><ellipse cx="7" cy="7" rx="2.5" ry="5.5"/><line x1="1.5" y1="7" x2="12.5" y2="7"/></svg>
@@ -157,23 +223,43 @@
         class:active={editMode === 'view'}
         onclick={() => onSetMode('view')}
         disabled={!$document.filePath}
-      >View</button>
+      >{$messages.view}</button>
       <button
         class="mode-seg"
         class:active={editMode === 'split'}
         onclick={() => onSetMode('split')}
         disabled={!canEdit}
-      >Split</button>
+      >{$messages.split}</button>
       <button
         class="mode-seg"
         class:active={editMode === 'edit'}
         onclick={() => onSetMode('edit')}
         disabled={!canEdit}
-      >Edit</button>
+      >{$messages.edit}</button>
     </div>
   </div>
 
   <div class="toolbar-right">
+    <button
+      onclick={() => folderWorkspace.toggleVisible()}
+      class="btn btn-icon"
+      class:active={Boolean($folderWorkspace.rootPath) && $folderWorkspace.sidebarVisible}
+      disabled={!$folderWorkspace.rootPath || isEditing}
+      title={!$folderWorkspace.rootPath
+        ? 'Folder explorer (open a folder first)'
+        : isEditing
+        ? 'Folder explorer (exit edit mode to use)'
+        : $folderWorkspace.sidebarVisible
+        ? $messages.hideFolder
+        : $messages.showFolder}
+      aria-label={$folderWorkspace.sidebarVisible ? $messages.hideFolder : $messages.showFolder}
+    >
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1.75 4.25h4l1.25 1.5h7.25v6.5H1.75z" />
+        <path d="M1.75 4.25V3h4.1l1.1 1.25" />
+      </svg>
+    </button>
+
     <button
       onclick={toggleToc}
       class="btn btn-icon"
@@ -185,7 +271,7 @@
         ? 'Table of Contents (exit edit mode to use)'
         : $tocEntries.length === 0
         ? 'Table of Contents (no headings in this document)'
-        : 'Table of Contents'}
+        : $messages.toc}
     >
       <svg width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="10" y2="8"/><line x1="2" y1="12" x2="12" y2="12"/></svg>
     </button>
@@ -331,8 +417,8 @@
     <button
       onclick={() => { closeAll(); onOpenSettings(); }}
       class="btn btn-icon"
-      title="Settings (Cmd+,)"
-      aria-label="Settings"
+      title={$messages.settings + ' (Ctrl+,)'}
+      aria-label={$messages.settings}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
@@ -340,13 +426,34 @@
       </svg>
     </button>
 
-    <button onclick={handleThemeToggle} class="btn btn-icon" title="Toggle theme">
+    <div class="menu-wrap">
+      <button onclick={toggleLanguageMenu} class="btn btn-icon" class:active={showLanguageMenu} title={$messages.language} aria-label={$messages.language}>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M3.5 10h13M10 3c2 2.2 3 4.5 3 7s-1 4.8-3 7c-2-2.2-3-4.5-3-7s1-4.8 3-7z"/></svg>
+      </button>
+      {#if showLanguageMenu}
+        <div class="dropdown language-dropdown">
+          {#each $availableLocales as option}
+            <button class="dropdown-item" class:active={$locale === option.code} onclick={() => { setLocale(option.code); closeAll(); }}>
+              <span>{option.label}</span>{#if $locale === option.code}<span>✓</span>{/if}
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <button onclick={handleThemeToggle} class="btn btn-icon" title={$messages.theme}>
       {getThemeIcon($themeMode)}
     </button>
+
+    <div class="window-controls" role="group" aria-label="Window controls">
+      <button class="window-btn" onclick={() => getCurrentWindow().minimize()} title={$messages.minimize} aria-label={$messages.minimize}><span>—</span></button>
+      <button class="window-btn" onclick={toggleMaximize} title={maximized ? $messages.restore : $messages.maximize} aria-label={maximized ? $messages.restore : $messages.maximize}><span class="maximize-glyph">{maximized ? '❐' : '□'}</span></button>
+      <button class="window-btn window-close" onclick={() => getCurrentWindow().close()} title={$messages.close} aria-label={$messages.close}><span>×</span></button>
+    </div>
   </div>
 </header>
 
-{#if showCopyMenu || showReaderControls}
+{#if showCopyMenu || showReaderControls || showAppMenu || showLanguageMenu}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="fixed inset-0 z-[9]" onclick={closeAll} onkeydown={() => {}}></div>
 {/if}
@@ -366,6 +473,7 @@
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid #e5e5e5;
+    user-select: none;
   }
 
   :global(html.dark) .toolbar {
@@ -403,17 +511,37 @@
     display: flex;
     align-items: center;
     gap: 2px;
+    flex-shrink: 0;
   }
+
+  .menu-wrap { position: relative; }
+  .app-menu-btn { padding: 4px 7px; border-radius: 6px; background: transparent; color: #636366; letter-spacing: 1px; }
+  .app-menu-btn:hover, .app-menu-btn.active { background: #e5f5f8; color: #0891b2; }
+  .app-menu-dropdown { left: 0; right: auto; width: 230px; }
+  .language-dropdown { width: 150px; }
+  .dropdown-separator { height: 1px; margin: 4px 6px; background: #e5e5ea; }
+  :global(html.dark) .dropdown-separator { background: #3a3a3c; }
+  .dropdown-item.danger { color: #c62828; }
+  .dropdown-item.active { color: #0891b2; font-weight: 600; }
+
+  .window-controls { display: flex; align-self: stretch; margin: -6px -12px -6px 6px; }
+  .window-btn { width: 46px; min-height: 39px; border: 0; background: transparent; color: #3a3a3c; font-size: 18px; display: grid; place-items: center; }
+  .window-btn:hover { background: rgba(0,0,0,.08); }
+  .window-close:hover { background: #c42b1c; color: white; }
+  :global(html.dark) .window-btn { color: #e5e5e7; }
+  :global(html.dark) .window-btn:hover { background: rgba(255,255,255,.1); }
+  :global(html.dark) .window-close:hover { background: #c42b1c; color: white; }
+  .maximize-glyph { font-size: 16px; line-height: 1; }
 
   /* Centered mode switcher: absolutely centered in the toolbar so it stays put
      regardless of the left/right group widths. Anchors to .toolbar (sticky). */
   .toolbar-center {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
+    position: static;
+    transform: none;
+    margin-left: auto;
     display: flex;
     align-items: center;
+    flex-shrink: 0;
   }
 
   .btn-group {
@@ -673,5 +801,17 @@
 
   @media print {
     .toolbar { display: none !important; }
+  }
+
+  @media (max-width: 1320px) {
+    .current-heading { display: none; }
+    .btn-icon { padding-left: 7px; padding-right: 7px; }
+    .window-btn { width: 42px; }
+  }
+
+  @media (max-width: 1040px) {
+    .toolbar-wordmark { display: none; }
+    .btn-primary, .btn-ghost { padding-left: 10px; padding-right: 10px; }
+    .mode-seg { padding-left: 7px; padding-right: 7px; }
   }
 </style>

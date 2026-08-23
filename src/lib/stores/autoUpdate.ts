@@ -4,7 +4,7 @@ import { writable, get } from "svelte/store";
  * In-app download + install of updates via tauri-plugin-updater.
  *
  * This is the *action* layer. The *detection* layer lives in `updater.ts`
- * (it polls mdhero.app/api/version, drives the banner/toast, and feeds the
+ * (it polls the BearAI Markdown GitHub releases API, drives the banner/toast, and feeds the
  * aggregate DAU counter). When the user clicks "Update now," we run the
  * updater plugin's own check against the GitHub `latest.json` manifest —
  * that's authoritative for the signed artifact — then download, install, and

@@ -21,6 +21,7 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { invoke } from "@tauri-apps/api/core";
   import { tocVisible, tocEntries } from "$lib/stores/toc";
+  import { messages } from "$lib/i18n";
   import Toolbar from "$lib/components/Toolbar.svelte";
   import MarkdownRenderer from "$lib/components/MarkdownRenderer.svelte";
   import DropZone from "$lib/components/DropZone.svelte";
@@ -59,6 +60,8 @@
   let openVisible = $state(false);
   let settingsVisible = $state(false);
   let aboutVisible = $state(false);
+  let toolbarHeight = $state(39);
+  let chromeHeight = $state(76);
   let customPromptVisible = $state(false);
   let customPromptSelection = $state("");
   let zenMode = $state(false);
@@ -194,6 +197,26 @@
       splitPreviewHtml = result.html;
     }, 120);
     return () => clearTimeout(splitPreviewTimer);
+  });
+
+  onMount(() => {
+    const updateChromeMetrics = () => {
+      const toolbar = document.querySelector<HTMLElement>(".toolbar");
+      const tabbar = document.querySelector<HTMLElement>(".tabbar");
+      if (toolbar) toolbarHeight = Math.ceil(toolbar.getBoundingClientRect().bottom);
+      if (tabbar) chromeHeight = Math.ceil(tabbar.getBoundingClientRect().bottom);
+    };
+    const observer = new ResizeObserver(updateChromeMetrics);
+    const toolbar = document.querySelector<HTMLElement>(".toolbar");
+    const tabbar = document.querySelector<HTMLElement>(".tabbar");
+    if (toolbar) observer.observe(toolbar);
+    if (tabbar) observer.observe(tabbar);
+    window.addEventListener("resize", updateChromeMetrics);
+    requestAnimationFrame(updateChromeMetrics);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateChromeMetrics);
+    };
   });
 
   // Marp presentation (#44). `presenting` is a page-level view mode (like rawMode);
@@ -533,7 +556,7 @@
       // If still nothing, give the user explicit feedback — silence is confusing
       // when a menu item is the trigger.
       if (!get(updateAvailable)) {
-        alert("MDHero is up to date.");
+        alert("BearAI Markdown is up to date.");
       }
     };
     // Router for AI Lookup right-click menu items. lib.rs::setup forwards any
@@ -976,7 +999,7 @@
       });
       tocVisible.set(false);
       tocEntries.set([]);
-      getCurrentWindow().setTitle("MDHero").catch(() => {});
+      getCurrentWindow().setTitle($messages.appName).catch(() => {});
       return;
     }
 
@@ -998,7 +1021,7 @@
     // mid-edit (#44). Runs once per tab switch, so an explicit exit (Esc) sticks.
     presenting = isMarpDoc(tab.frontmatter) && get(settings).autoPresentMarp && !tab.isEditing;
 
-    getCurrentWindow().setTitle(`${tab.fileName} — MDHero`).catch(() => {});
+    getCurrentWindow().setTitle(`${tab.fileName} — ${$messages.appName}`).catch(() => {});
 
     const savedScroll = tab.scrollTop;
     tick().then(() => {
@@ -1021,9 +1044,16 @@
       startFileWatcher(path);
     }
   });
+
+  // Keep the native taskbar/window title in sync when the UI language changes.
+  $effect(() => {
+    const appName = $messages.appName;
+    const fileName = $docStore.fileName;
+    getCurrentWindow().setTitle(fileName ? `${fileName} — ${appName}` : appName).catch(() => {});
+  });
 </script>
 
-<div class="min-h-screen transition-colors page-root" class:folder-open={!zenMode && !presenting && !activeTab?.isEditing && Boolean($folderWorkspace.rootPath) && $folderWorkspace.sidebarVisible}>
+<div class="min-h-screen transition-colors page-root" style="--toolbar-height: {toolbarHeight}px; --app-chrome-height: {chromeHeight}px" class:folder-open={!zenMode && !presenting && !activeTab?.isEditing && Boolean($folderWorkspace.rootPath) && $folderWorkspace.sidebarVisible}>
   {#if !zenMode}
     <ProgressBar />
     <Toolbar
@@ -1042,6 +1072,12 @@
       canPresent={activeIsMarp}
       presenting={presenting}
       onTogglePresent={togglePresent}
+      onNew={() => newDocument()}
+      onFind={() => (searchVisible = !searchVisible)}
+      onAbout={() => (aboutVisible = true)}
+      onQuit={() => (window as any).__mdhero_quit?.()}
+      onCloseActive={() => activeTab && handleCloseTab(activeTab.id)}
+      onCheckUpdates={() => (window as any).__mdhero_check_updates?.()}
     />
     <TabBar onCloseTab={handleCloseTab} />
   {/if}
@@ -1207,7 +1243,7 @@
 
   .content-main {
     padding-bottom: 4rem;
-    transition: padding-left 0.15s ease;
+    transition: padding-right 0.15s ease;
   }
 
   /* Split preview pane (#19): fixed right half, mirroring the editor's fixed
@@ -1229,7 +1265,13 @@
   }
 
   .content-main.toc-spaced {
-    padding-left: 240px;
+    padding-right: 240px;
+  }
+
+  @media (max-width: 720px) {
+    .content-main.toc-spaced {
+      padding-right: 0;
+    }
   }
 
   .raw-source {

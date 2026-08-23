@@ -27,14 +27,14 @@ fn get_opened_files(state: tauri::State<'_, OpenedFiles>) -> Vec<String> {
     result
 }
 
-/// Parse a `mdhero://open?path=<url-encoded-abs-path>` deep link into an
+/// Parse a `bearai-markdown://open?path=<url-encoded-abs-path>` deep link into an
 /// absolute markdown file path. Returns None for any other action, a relative
 /// path, a non-markdown extension, or a file that doesn't exist — the scheme is
 /// a door any webpage can knock on, so we validate strictly before opening. The
 /// path only ever routes to `openFile` (read + render), never a write or exec.
 #[cfg(target_os = "macos")]
-fn parse_mdhero_url(url: &tauri::Url) -> Option<String> {
-    // Action lives in the authority slot: mdhero://open?path=...
+fn parse_bearai_markdown_url(url: &tauri::Url) -> Option<String> {
+    // Action lives in the authority slot: bearai-markdown://open?path=...
     if url.host_str() != Some("open") {
         return None;
     }
@@ -92,9 +92,15 @@ pub fn run() {
             get_opened_files,
         ])
         .setup(|app| {
-            let handle = app.handle().clone();
-            let menu = menu::create_menu(&handle)?;
-            app.set_menu(menu)?;
+            // Windows/Linux use the custom in-webview title bar and application
+            // menu. macOS keeps its native app/window menus for platform-level
+            // services, window tiling and standard keyboard conventions.
+            #[cfg(target_os = "macos")]
+            {
+                let handle = app.handle().clone();
+                let menu = menu::create_menu(&handle)?;
+                app.set_menu(menu)?;
+            }
 
             // Red-button (window) close routes through the frontend quit guard
             // instead of closing, so unsaved changes get a confirm dialog (#54).
@@ -102,6 +108,8 @@ pub fn run() {
             // quit_app (AppHandle::exit) is a hard exit that bypasses this, so a
             // confirmed quit can't loop back here.
             if let Some(main_window) = app.get_webview_window("main") {
+                #[cfg(not(target_os = "macos"))]
+                main_window.set_decorations(false)?;
                 let quit_win = main_window.clone();
                 main_window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -169,7 +177,7 @@ pub fn run() {
                             .to_file_path()
                             .ok()
                             .map(|p| p.to_string_lossy().to_string()),
-                        "mdhero" => parse_mdhero_url(&url),
+                        "bearai-markdown" | "mdhero" => parse_bearai_markdown_url(&url),
                         _ => None,
                     };
 
@@ -205,7 +213,7 @@ pub fn run() {
 
 #[cfg(all(test, target_os = "macos"))]
 mod tests {
-    use super::parse_mdhero_url;
+    use super::parse_bearai_markdown_url;
     use tauri::Url;
 
     fn u(s: &str) -> Url {
@@ -221,7 +229,7 @@ mod tests {
             file.to_string_lossy().replace(' ', "%20")
         );
         assert_eq!(
-            parse_mdhero_url(&u(&enc)),
+            parse_bearai_markdown_url(&u(&enc)),
             Some(file.to_string_lossy().to_string())
         );
         std::fs::remove_file(&file).ok();
@@ -233,7 +241,7 @@ mod tests {
         let file = std::path::Path::new(&home).join("mdhero_tilde_test.md");
         std::fs::write(&file, "x").unwrap();
         assert_eq!(
-            parse_mdhero_url(&u("mdhero://open?path=~/mdhero_tilde_test.md")),
+            parse_bearai_markdown_url(&u("bearai-markdown://open?path=~/mdhero_tilde_test.md")),
             Some(file.to_string_lossy().to_string())
         );
         std::fs::remove_file(&file).ok();
@@ -241,30 +249,30 @@ mod tests {
 
     #[test]
     fn rejects_wrong_action() {
-        assert_eq!(parse_mdhero_url(&u("mdhero://delete?path=/tmp/x.md")), None);
+        assert_eq!(parse_bearai_markdown_url(&u("bearai-markdown://delete?path=/tmp/x.md")), None);
     }
 
     #[test]
     fn rejects_non_markdown_extension() {
         // /etc/passwd exists but isn't markdown → refused before any open.
-        assert_eq!(parse_mdhero_url(&u("mdhero://open?path=/etc/passwd")), None);
+        assert_eq!(parse_bearai_markdown_url(&u("bearai-markdown://open?path=/etc/passwd")), None);
     }
 
     #[test]
     fn rejects_relative_path() {
-        assert_eq!(parse_mdhero_url(&u("mdhero://open?path=notes.md")), None);
+        assert_eq!(parse_bearai_markdown_url(&u("bearai-markdown://open?path=notes.md")), None);
     }
 
     #[test]
     fn rejects_missing_file() {
         assert_eq!(
-            parse_mdhero_url(&u("mdhero://open?path=/tmp/does-not-exist-abc.md")),
+            parse_bearai_markdown_url(&u("bearai-markdown://open?path=/tmp/does-not-exist-abc.md")),
             None
         );
     }
 
     #[test]
     fn rejects_missing_path_param() {
-        assert_eq!(parse_mdhero_url(&u("mdhero://open")), None);
+        assert_eq!(parse_bearai_markdown_url(&u("bearai-markdown://open")), None);
     }
 }

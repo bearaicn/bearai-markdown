@@ -2,6 +2,7 @@
   import { openFolder } from "$lib/tauri/folders";
   import { folderWorkspace } from "$lib/stores/folderWorkspace";
   import DirectoryTree from "./DirectoryTree.svelte";
+  import { messages } from "$lib/i18n";
 
   let refreshKey = $state(0);
   let error = $state("");
@@ -23,9 +24,9 @@
         <span class="folder-title" title={$folderWorkspace.rootPath}>{$folderWorkspace.rootPath.replace(/\\/g, "/").split("/").pop()}</span>
         <span class="folder-path">{$folderWorkspace.rootPath}</span>
       </div>
-      <button class="icon-btn" onclick={() => refreshKey++} title="Refresh folder" aria-label="Refresh folder">↻</button>
-      <button class="icon-btn" onclick={chooseFolder} title="Open another folder" aria-label="Open another folder">＋</button>
-      <button class="icon-btn" onclick={() => folderWorkspace.close()} title="Close folder" aria-label="Close folder">×</button>
+      <button class="icon-btn" onclick={() => refreshKey++} title={$messages.refreshFolder} aria-label={$messages.refreshFolder}>↻</button>
+      <button class="icon-btn" onclick={chooseFolder} title={$messages.openAnotherFolder} aria-label={$messages.openAnotherFolder}>＋</button>
+      <button class="icon-btn" onclick={() => folderWorkspace.close()} title={$messages.closeFolder} aria-label={$messages.closeFolder}>×</button>
     </header>
     {#if error}<div class="sidebar-error">{error}</div>{/if}
     <DirectoryTree root={$folderWorkspace.rootPath} {refreshKey} />
@@ -35,11 +36,11 @@
 <style>
   .folder-sidebar {
     position: fixed;
-    top: 75px;
+    top: var(--app-chrome-height, 76px);
     bottom: 0;
     left: 0;
     width: 280px;
-    z-index: 30;
+    z-index: 10;
     display: flex;
     flex-direction: column;
     background: #f5f5f7;

@@ -2,6 +2,7 @@
   import { tabStore, HOME_TAB_ID, type Tab } from "$lib/stores/tabs";
   import { newDocument } from "$lib/tauri/files";
   import { copyPath } from "$lib/utils/clipboard";
+  import { messages } from "$lib/i18n";
 
   let {
     onCloseTab = (id: string) => tabStore.closeTab(id),
@@ -159,7 +160,7 @@
     </div>
 
     <!-- New tab button -->
-    <button class="new-tab-btn" onclick={handleNewTab} title="New tab">
+    <button class="new-tab-btn" onclick={handleNewTab} title={$messages.newTab}>
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
         <line x1="6" y1="2" x2="6" y2="10"/>
         <line x1="2" y1="6" x2="10" y2="6"/>
@@ -173,7 +174,7 @@
   <div class="fixed inset-0 z-[9]" onclick={closeContextMenu} onkeydown={() => {}}></div>
   <div class="dropdown" style="left: {contextMenuPos.x}px; top: {contextMenuPos.y}px;">
     <button onclick={handleCopyPath} class="dropdown-item">
-      <span>{copyFeedback || "Copy Path"}</span>
+      <span>{copyFeedback || $messages.copyPath}</span>
     </button>
   </div>
 {/if}
@@ -181,7 +182,7 @@
 <style>
   .tabbar {
     position: sticky;
-    top: 37px;
+    top: var(--toolbar-height, 39px);
     z-index: 15;
     background: #dee1e6;
     padding: 6px 8px 0;

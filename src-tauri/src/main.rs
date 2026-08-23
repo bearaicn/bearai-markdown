@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    mdhero_lib::run()
+    bearai_markdown_lib::run()
 }

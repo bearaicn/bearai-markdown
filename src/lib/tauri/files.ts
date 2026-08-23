@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { currentAppName } from "$lib/i18n";
 import { document } from "../stores/document";
 import { tabStore } from "../stores/tabs";
 import { renderFull } from "../renderer/pipeline";
@@ -61,7 +62,7 @@ export async function openFile(path: string): Promise<void> {
     });
 
     addRecentFile(absolutePath, fileName);
-    getCurrentWindow().setTitle(`${fileName} — MDHero`).catch(() => {});
+    getCurrentWindow().setTitle(`${fileName} — ${currentAppName()}`).catch(() => {});
     invoke("start_watching", { path: absolutePath }).catch(() => {});
   } catch (err) {
     document.set({
@@ -117,7 +118,7 @@ export async function saveAsNewDocument(tabId: string, content: string): Promise
   await saveFile(chosen, content);
   tabStore.rebindPath(tabId, chosen, fileName);
   addRecentFile(chosen, fileName);
-  getCurrentWindow().setTitle(`${fileName} — MDHero`).catch(() => {});
+  getCurrentWindow().setTitle(`${fileName} — ${currentAppName()}`).catch(() => {});
   invoke("start_watching", { path: chosen }).catch(() => {});
   return chosen;
 }

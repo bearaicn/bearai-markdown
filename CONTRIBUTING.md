@@ -1,6 +1,6 @@
-# Contributing to MDHero
+# Contributing to BearAI Markdown
 
-Thanks for your interest in MDHero! This is a side project, so response times may vary — but contributions are very welcome.
+Thanks for your interest in BearAI Markdown! Contributions are welcome. This project is derived from MDHero by Vaibhav Kakde under the MIT License.
 
 ---
 
@@ -37,8 +37,8 @@ Small PRs (bug fixes, typos, minor tweaks) don't need an issue first.
 
 ```bash
 # Clone
-git clone https://github.com/vaibhavuk-dev/mdhero.git
-cd mdhero
+git clone https://github.com/bearaicn/bearai-markdown.git
+cd bearai-markdown
 
 # Install dependencies
 pnpm install

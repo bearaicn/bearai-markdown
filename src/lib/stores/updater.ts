@@ -1,16 +1,7 @@
 import { writable, get } from "svelte/store";
 import { getVersion } from "@tauri-apps/api/app";
 
-function detectOS(): string {
-  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
-  if (/Mac|iPhone|iPad|iPod/.test(ua)) return "darwin";
-  if (/Win/.test(ua)) return "win32";
-  if (/Linux/.test(ua)) return "linux";
-  return "unknown";
-}
-
-const PRIMARY_ENDPOINT = "https://mdhero.app/api/version";
-const FALLBACK_GITHUB = "https://api.github.com/repos/vaibhavuk-dev/mdhero/releases/latest";
+const GITHUB_RELEASES_ENDPOINT = "https://api.github.com/repos/bearaicn/bearai-markdown/releases/latest";
 
 const CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 const LAST_CHECK_KEY = "mdhero_update_check";
@@ -53,23 +44,8 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-async function fetchPrimary(currentVersion: string, os: string): Promise<UpdateInfo | null> {
-  const u = `${PRIMARY_ENDPOINT}?from=${encodeURIComponent(currentVersion)}&os=${encodeURIComponent(os)}`;
-  const res = await fetch(u, { headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error(`primary endpoint ${res.status}`);
-  const data = await res.json();
-  if (!data?.version || !data?.url) return null;
-  return {
-    version: String(data.version).replace(/^v/, ""),
-    url: String(data.url),
-    download: data.download ? String(data.download) : undefined,
-    notes: data.notes ? String(data.notes) : undefined,
-    severity: data.severity === "important" ? "important" : "normal",
-  };
-}
-
-async function fetchFallback(): Promise<UpdateInfo | null> {
-  const res = await fetch(FALLBACK_GITHUB, {
+async function fetchLatestRelease(): Promise<UpdateInfo | null> {
+  const res = await fetch(GITHUB_RELEASES_ENDPOINT, {
     headers: { Accept: "application/vnd.github.v3+json" },
   });
   if (!res.ok) return null;
@@ -98,14 +74,7 @@ export async function checkForUpdates(force = false): Promise<void> {
 
   try {
     const currentVersion = await getVersion().catch(() => "0.0.0");
-    const os = detectOS();
-
-    let latest: UpdateInfo | null = null;
-    try {
-      latest = await fetchPrimary(currentVersion, os);
-    } catch {
-      latest = await fetchFallback();
-    }
+    const latest = await fetchLatestRelease();
 
     if (!latest) return;
 

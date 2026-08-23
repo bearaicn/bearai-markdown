@@ -31,7 +31,7 @@
         {:else if $updateError}
           Update failed
         {:else}
-          MDHero <strong>v{$updateAvailable.version}</strong> is available
+          BearAI Markdown <strong>v{$updateAvailable.version}</strong> is available
         {/if}
       </span>
     </div>

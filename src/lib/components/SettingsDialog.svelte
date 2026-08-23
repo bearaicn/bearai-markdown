@@ -2,6 +2,7 @@
   import { X } from "@lucide/svelte";
   import { settings } from "$lib/stores/settings";
   import AILookupSettings from "./AILookupSettings.svelte";
+  import { messages } from "$lib/i18n";
 
   let { visible = $bindable(false) }: { visible: boolean } = $props();
 
@@ -22,7 +23,7 @@
   <div class="dialog-backdrop" onclick={handleBackdropClick} onkeydown={handleKeydown}>
     <div class="dialog">
       <div class="dialog-header">
-        <h2 class="dialog-title">Settings</h2>
+        <h2 class="dialog-title">{$messages.settings}</h2>
         <button onclick={() => (visible = false)} class="dialog-close" aria-label="Close">
           <X size={16} />
         </button>
@@ -30,11 +31,11 @@
 
       <div class="dialog-body">
         <section class="settings-section">
-          <h3 class="section-title">Behavior</h3>
+          <h3 class="section-title">{$messages.behavior}</h3>
 
           <label class="setting-row">
             <div class="setting-text">
-              <span class="setting-label">Close on Escape</span>
+              <span class="setting-label">{$messages.closeOnEscape}</span>
               <span class="setting-hint">Press ESC to close the current tab. App quits after the last tab.</span>
             </div>
             <input
@@ -47,7 +48,7 @@
 
           <label class="setting-row">
             <div class="setting-text">
-              <span class="setting-label">Auto-present Marp decks</span>
+              <span class="setting-label">{$messages.autoPresent}</span>
               <span class="setting-hint">Open documents with <code>marp: true</code> frontmatter as a slideshow.</span>
             </div>
             <input
@@ -60,11 +61,11 @@
         </section>
 
         <section class="settings-section">
-          <h3 class="section-title">Editor</h3>
+          <h3 class="section-title">{$messages.editor}</h3>
 
           <label class="setting-row">
             <div class="setting-text">
-              <span class="setting-label">Line numbers</span>
+              <span class="setting-label">{$messages.lineNumbers}</span>
               <span class="setting-hint">Show a line-number gutter in the editor.</span>
             </div>
             <input
@@ -77,7 +78,21 @@
         </section>
 
         <section class="settings-section">
-          <h3 class="section-title">AI Lookup</h3>
+          <h3 class="section-title">{$messages.tocSettings}</h3>
+          <label class="setting-row">
+            <div class="setting-text">
+              <span class="setting-label">{$messages.tocDefaultDepth}</span>
+              <span class="setting-hint">{$messages.tocDefaultDepthHint}</span>
+            </div>
+            <select class="setting-select" value={$settings.tocDefaultDepth} onchange={(e) => settings.update((s) => ({ ...s, tocDefaultDepth: Number(e.currentTarget.value) }))}>
+              {#each [1, 2, 3, 4, 5] as depth}<option value={depth}>{depth}</option>{/each}
+              <option value={6}>{$messages.depthAll}</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="settings-section">
+          <h3 class="section-title">{$messages.aiLookup}</h3>
           <p class="section-hint">Right-click selected text in the viewer to send it to an AI tool. Manage providers and saved prompts below.</p>
           <AILookupSettings />
         </section>
@@ -111,6 +126,9 @@
     flex-direction: column;
     overflow: hidden;
   }
+
+  .setting-select { min-width: 110px; padding: 6px 9px; border: 1px solid #d1d1d6; border-radius: 7px; background: #fff; color: #1c1c1e; }
+  :global(html.dark) .setting-select { background: #2c2c2e; border-color: #48484a; color: #f2f2f7; }
 
   :global(html.dark) .dialog {
     background: #2c2c2e;

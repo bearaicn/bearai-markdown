@@ -1,5 +1,35 @@
 <script lang="ts">
   import { tocEntries, activeHeadingId, tocVisible, setActiveHeading } from "$lib/stores/toc";
+  import { settings } from "$lib/stores/settings";
+  import { messages } from "$lib/i18n";
+
+  let collapsed = $state<Set<string>>(new Set());
+
+  function hasChildren(index: number): boolean {
+    return index + 1 < $tocEntries.length && $tocEntries[index + 1].level > $tocEntries[index].level;
+  }
+
+  function toggleCollapsed(id: string) {
+    const next = new Set(collapsed);
+    next.has(id) ? next.delete(id) : next.add(id);
+    collapsed = next;
+  }
+
+  let visibleEntries = $derived.by(() => {
+    const hiddenLevels: number[] = [];
+    return $tocEntries.map((entry, index) => {
+      while (hiddenLevels.length && entry.level <= hiddenLevels[hiddenLevels.length - 1]) hiddenLevels.pop();
+      const hidden = hiddenLevels.length > 0;
+      if (!hidden && collapsed.has(entry.id) && hasChildren(index)) hiddenLevels.push(entry.level);
+      return { entry, index, hidden };
+    }).filter((item) => !item.hidden);
+  });
+
+  $effect(() => {
+    const entries = $tocEntries;
+    const depth = $settings.tocDefaultDepth;
+    collapsed = new Set(entries.filter((entry, index) => entry.level >= depth && index + 1 < entries.length && entries[index + 1].level > entry.level).map((entry) => entry.id));
+  });
 
   function scrollToHeading(id: string) {
     setActiveHeading(id);
@@ -19,18 +49,20 @@
 {#if $tocVisible && $tocEntries.length > 0}
   <aside class="toc-sidebar">
     <div class="toc-header">
-      <span>On this page</span>
+      <span>{$messages.tocTitle}</span>
     </div>
     <nav class="toc-nav">
-      {#each $tocEntries as entry (entry.id)}
-        <button
-          onclick={() => scrollToHeading(entry.id)}
-          class="toc-item"
-          class:active={$activeHeadingId === entry.id}
-          style="padding-left: calc(12px + {getIndent(entry.level)})"
-        >
-          {entry.text}
-        </button>
+      {#each visibleEntries as item (item.entry.id)}
+        <div class="toc-row" class:active={$activeHeadingId === item.entry.id} style="padding-left: {getIndent(item.entry.level)}">
+          {#if hasChildren(item.index)}
+            <button class="toc-toggle" onclick={() => toggleCollapsed(item.entry.id)} aria-label={collapsed.has(item.entry.id) ? 'Expand' : 'Collapse'} aria-expanded={!collapsed.has(item.entry.id)}>
+              <span class:collapsed={collapsed.has(item.entry.id)}>⌄</span>
+            </button>
+          {:else}
+            <span class="toc-toggle-spacer"></span>
+          {/if}
+          <button onclick={() => scrollToHeading(item.entry.id)} class="toc-item">{item.entry.text}</button>
+        </div>
       {/each}
     </nav>
   </aside>
@@ -39,21 +71,21 @@
 <style>
   .toc-sidebar {
     position: fixed;
-    left: 0;
-    top: 80px;
+    right: 0;
+    top: var(--app-chrome-height, 76px);
     bottom: 0;
     width: 240px;
     background: #fafafa;
-    border-right: 1px solid #e5e5e5;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.04);
+    border-left: 1px solid #e5e5e5;
+    box-shadow: -2px 0 8px rgba(0,0,0,0.04);
     overflow-y: auto;
-    z-index: 14;
+    z-index: 10;
   }
 
   :global(html.dark) .toc-sidebar {
     background: #1c1c1e;
-    border-right-color: #2c2c2e;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.2);
+    border-left-color: #2c2c2e;
+    box-shadow: -2px 0 8px rgba(0,0,0,0.2);
   }
 
   .toc-header {
@@ -69,16 +101,24 @@
     padding: 0 8px 16px;
   }
 
+  .toc-row {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    border-left: 2px solid transparent;
+    border-radius: 0 4px 4px 0;
+  }
+
   .toc-item {
     display: block;
-    width: 100%;
+    min-width: 0;
+    flex: 1;
     text-align: left;
-    padding: 4px 12px;
+    padding: 4px 8px 4px 2px;
     font-size: 13px;
     color: #636366;
     background: none;
     border: none;
-    border-left: 2px solid transparent;
     border-radius: 0;
     cursor: pointer;
     overflow: hidden;
@@ -100,7 +140,7 @@
     color: #e5e5e7;
   }
 
-  .toc-item.active {
+  .toc-row.active {
     color: #0891B2;
     border-left-color: #0891B2;
     border-left-width: 3px;
@@ -109,11 +149,18 @@
     border-radius: 0 4px 4px 0;
   }
 
-  :global(html.dark) .toc-item.active {
+  :global(html.dark) .toc-row.active {
     color: #22D3EE;
     border-left-color: #22D3EE;
     background: rgba(34, 211, 238, 0.08);
   }
+
+  .toc-row.active .toc-item { color: inherit; font-weight: 500; }
+  .toc-toggle, .toc-toggle-spacer { width: 22px; height: 24px; flex: 0 0 22px; display: grid; place-items: center; }
+  .toc-toggle { border: 0; padding: 0; background: transparent; color: #8e8e93; cursor: pointer; border-radius: 4px; }
+  .toc-toggle:hover { background: rgba(8,145,178,.1); color: #0891b2; }
+  .toc-toggle span { display: block; transition: transform .15s ease; }
+  .toc-toggle span.collapsed { transform: rotate(-90deg); }
 
   @media print {
     .toc-sidebar { display: none !important; }

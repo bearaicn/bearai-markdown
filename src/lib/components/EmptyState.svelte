@@ -6,7 +6,8 @@
   import { pinnedFolders } from "../stores/pinned";
   import { settings } from "../stores/settings";
   import UpdateBanner from "./UpdateBanner.svelte";
-  import brandLogo from "$lib/assets/mdhero-icon.png";
+  import brandLogo from "$lib/assets/bearai-markdown-icon.png";
+  import { messages } from "$lib/i18n";
 
   let { onOpenUrl = () => {} }: { onOpenUrl?: () => void } = $props();
 
@@ -114,9 +115,9 @@
 <div class="empty-root" style="zoom: {scale};">
   <!-- Hero bar -->
   <div class="hero-bar">
-    <img src={brandLogo} alt="MDHero" width="48" height="48" class="hero-logo" />
+    <img src={brandLogo} alt={$messages.appName} width="48" height="48" class="hero-logo" />
     <div class="hero-text">
-      <h1 class="hero-title">MDHero</h1>
+      <h1 class="hero-title">{$messages.appName}</h1>
       <p class="hero-desc">A native Markdown reader and editor.</p>
     </div>
   </div>

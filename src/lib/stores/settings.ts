@@ -10,6 +10,8 @@ export interface ReaderSettings {
   showLineNumbers: boolean;
   /** Auto-open `marp: true` documents as a slideshow (#44). */
   autoPresentMarp: boolean;
+  /** TOC headings deeper than this level start collapsed; 6 means all. */
+  tocDefaultDepth: number;
 }
 
 const STORAGE_KEY = "mdhero-settings";
@@ -32,6 +34,7 @@ function loadSettings(): ReaderSettings {
     closeOnEscape: true,
     showLineNumbers: true,
     autoPresentMarp: true,
+    tocDefaultDepth: 3,
   };
 
   if (typeof localStorage === "undefined") return defaults;
@@ -45,6 +48,7 @@ function loadSettings(): ReaderSettings {
         ...parsed,
         maxWidth: clamp(storedMaxWidth, MIN_MAX_WIDTH, MAX_MAX_WIDTH),
         widthMode: parsed.widthMode === "wide" ? "wide" : "comfortable",
+        tocDefaultDepth: clamp(Number(parsed.tocDefaultDepth) || defaults.tocDefaultDepth, 1, 6),
       };
     }
   } catch {}

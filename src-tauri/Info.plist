@@ -32,7 +32,7 @@
       <string>com.mdhero.app</string>
       <key>CFBundleURLSchemes</key>
       <array>
-        <string>mdhero</string>
+        <string>bearai-markdown</string>
       </array>
     </dict>
   </array>

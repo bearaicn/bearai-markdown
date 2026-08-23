@@ -7,10 +7,10 @@ pub fn create_menu<R: Runtime>(app: &AppHandle<R>) -> Result<Menu<R>, tauri::Err
     // macOS app menu (app name menu with Quit, Hide, etc.)
     let app_menu = Submenu::with_items(
         app,
-        "MDHero",
+        "熊智 Markdown",
         true,
         &[
-            &MenuItem::with_id(app, "about", "About MDHero", true, None::<&str>)?,
+            &MenuItem::with_id(app, "about", "About BearAI Markdown", true, None::<&str>)?,
             &MenuItem::with_id(
                 app,
                 "check_updates",
@@ -26,7 +26,7 @@ pub fn create_menu<R: Runtime>(app: &AppHandle<R>) -> Result<Menu<R>, tauri::Err
             // Custom Quit (not PredefinedMenuItem::quit) so Cmd+Q / menu Quit
             // fire a "quit" menu event instead of terminating outright — the
             // frontend guards it for unsaved changes (#54).
-            &MenuItem::with_id(app, "quit", "Quit MDHero", true, Some("CmdOrCtrl+Q"))?,
+            &MenuItem::with_id(app, "quit", "Quit BearAI Markdown", true, Some("CmdOrCtrl+Q"))?,
         ],
     )?;
 

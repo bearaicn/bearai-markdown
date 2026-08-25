@@ -28,7 +28,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function loadSettings(): ReaderSettings {
+export function loadSettings(): ReaderSettings {
   const defaults: ReaderSettings = {
     fontSize: 17,
     lineHeight: 1.7,
@@ -39,8 +39,8 @@ function loadSettings(): ReaderSettings {
     showLineNumbers: true,
     autoPresentMarp: true,
     tocDefaultDepth: 3,
-    rememberTocState: false,
-    rememberOpenDocuments: false,
+    rememberTocState: true,
+    rememberOpenDocuments: true,
   };
 
   if (typeof localStorage === "undefined") return defaults;

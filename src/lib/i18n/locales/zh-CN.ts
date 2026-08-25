@@ -169,6 +169,7 @@ const zh: Record<keyof typeof en, string> = {
   noSelectionPrompt: "没有选择文字，将直接发送提示词。",
   aboutDescription: "本地 Markdown 阅读、编辑与文件夹浏览工具。",
   basedOnMdhero: "基于 Vaibhav Kakde 的 MDHero 开发（MIT 协议）",
+  developedBy: "开发与维护：BearAI Contributors",
   exitPresentation: "退出演示",
   previousSlide: "上一张幻灯片",
   nextSlide: "下一张幻灯片",

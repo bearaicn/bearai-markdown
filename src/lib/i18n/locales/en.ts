@@ -167,6 +167,7 @@ export default {
   noSelectionPrompt: "No selection — your prompt will be sent as-is.",
   aboutDescription: "A local Markdown reader, editor, and folder browser.",
   basedOnMdhero: "Based on MDHero by Vaibhav Kakde (MIT)",
+  developedBy: "Developed and maintained by BearAI Contributors",
   exitPresentation: "Exit presentation",
   previousSlide: "Previous slide",
   nextSlide: "Next slide",

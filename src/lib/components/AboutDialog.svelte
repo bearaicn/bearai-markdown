@@ -45,6 +45,7 @@
           <h3 class="app-name">{$messages.appName}</h3>
           <p class="app-version">Version {appVersion}</p>
           <p class="app-description">{$messages.aboutDescription}</p>
+          <p class="app-author">{$messages.developedBy}</p>
           <a
             class="app-link"
             href="https://github.com/bearaicn/bearai-markdown"
@@ -179,6 +180,12 @@
     color: #636366;
     margin: 8px 0 0;
     line-height: 1.4;
+  }
+
+  .app-author {
+    font-size: 12px;
+    color: #8e8e93;
+    margin: 2px 0 0;
   }
 
   :global(html.dark) .app-description {

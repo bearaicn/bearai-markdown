@@ -1412,7 +1412,7 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     padding-bottom: 4rem;
-    transition: padding-right 0.15s ease;
+    transition: margin-right 0.15s ease;
   }
 
   /* Split preview pane (#19): fixed right half, mirroring the editor's fixed
@@ -1434,12 +1434,12 @@
   }
 
   .content-main.toc-spaced {
-    padding-right: var(--toc-sidebar-width, 240px);
+    margin-right: var(--toc-sidebar-width, 240px);
   }
 
   @media (max-width: 720px) {
     .content-main.toc-spaced {
-      padding-right: 0;
+      margin-right: 0;
     }
   }
 

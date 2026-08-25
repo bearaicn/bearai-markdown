@@ -198,6 +198,21 @@ pnpm tauri build
 This section records every release on BearAI Markdown's own version line. Upstream MDHero `v0.2.x`
 tags are not BearAI Markdown product versions.
 
+### v0.1.3 (2026-08-25)
+
+**Features and improvements**
+
+- Enabled “Remember the last outline state” and “Remember open documents” by default for new users. Older settings that lack these fields adopt the new defaults, while an existing explicit opt-out remains respected.
+- Switched the macOS main and dynamically created windows to native traffic lights, system corners and shadows, and an overlay title bar. The existing Toolbar remains the first row and TabBar remains unchanged on the second row.
+- Completed BearAI Markdown author, publisher, repository, homepage, issue tracker, installer copyright, and in-app About metadata for BearAI Contributors.
+- Continued to preserve the upstream MDHero author Vaibhav Kakde, repository, and MIT License attribution in the README, About dialog, and LICENSE.
+
+**Bug fixes**
+
+- Fixed the document scrollbar being placed at the far-right window edge and covered when the right-side TOC was visible. It now remains visible to the left of the TOC and scrolls the document independently.
+- Replaced the simulated macOS traffic lights that lacked native hover glyphs, standard window behavior, and system corners. Final visual and interaction acceptance still requires real Mac hardware.
+- Unified title-bar configuration between the macOS main window and windows created through “Open in New Window.”
+
 ### v0.1.2 (2026-08-25)
 
 **Features and improvements**
@@ -237,7 +252,7 @@ The next stage will proceed in this order, and completed work will move into the
 
 1. Establish a BearAI-specific Tauri updater signing key, GitHub Actions Secrets, public key, and
    `latest.json`, then verify signed download and installation across two consecutive versions. The private key will never enter the repository.
-2. Validate window controls, system recent documents, installation, signing, and notarization on real macOS hardware. A Windows build cannot replace this acceptance step.
+2. Validate native traffic-light placement and hover glyphs, system corners, fullscreen behavior, recent documents, installation, signing, and notarization on real macOS hardware. Neither a Windows build nor a passing macOS CI job can replace this acceptance step.
 3. Add complete update feedback for “already up to date,” network failures, and manual download.
 4. Resolve the remaining Svelte accessibility warnings and split oversized frontend build chunks.
 5. Plan a compatibility-safe migration away from the historical `mdhero` Tauri identifier without losing recent projects, settings, or reading progress.

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "title": "熊智 Markdown",
+        "width": 900,
+        "height": 700,
+        "minWidth": 400,
+        "minHeight": 300,
+        "visible": false,
+        "decorations": true,
+        "shadow": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }
+    ]
+  }
+}

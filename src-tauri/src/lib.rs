@@ -108,6 +108,11 @@ async fn open_path_in_new_window(app: tauri::AppHandle, kind: String, path: Stri
     .inner_size(900.0, 700.0)
     .min_inner_size(400.0, 300.0)
     .shadow(true);
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .decorations(true)
+        .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .hidden_title(true);
     #[cfg(not(target_os = "macos"))]
     let builder = builder.decorations(false);
     let window = builder.build().map_err(|error| error.to_string())?;

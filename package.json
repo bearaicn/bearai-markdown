@@ -1,7 +1,19 @@
 {
   "name": "bearai-markdown",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "BearAI Markdown（熊智 Markdown）本地 Markdown 阅读、编辑与文件夹浏览工具",
+  "author": "BearAI Contributors",
+  "contributors": [
+    "Vaibhav Kakde (original MDHero author)"
+  ],
+  "homepage": "https://github.com/bearaicn/bearai-markdown#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bearaicn/bearai-markdown.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bearaicn/bearai-markdown/issues"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite dev",

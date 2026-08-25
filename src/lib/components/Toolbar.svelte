@@ -169,16 +169,10 @@
 
 <header class="toolbar" role="presentation" data-tauri-drag-region ondblclick={(e) => {
   if ((e.target as HTMLElement).closest('button, input, .dropdown')) return;
+  if (isMac) return;
   toggleMaximize();
 }}>
-  <div class="toolbar-left">
-    {#if isMac}
-      <div class="mac-window-controls" role="group" aria-label={$messages.windowControls}>
-        <button class="mac-window-btn mac-close" onclick={() => getCurrentWindow().close()} title={$messages.close} aria-label={$messages.close}></button>
-        <button class="mac-window-btn mac-minimize" onclick={() => getCurrentWindow().minimize()} title={$messages.minimize} aria-label={$messages.minimize}></button>
-        <button class="mac-window-btn mac-maximize" onclick={toggleMaximize} title={maximized ? $messages.restore : $messages.maximize} aria-label={maximized ? $messages.restore : $messages.maximize}></button>
-      </div>
-    {/if}
+  <div class="toolbar-left" class:mac-native-titlebar={isMac}>
     <img src={brandLogo} alt={$messages.appName} width="26" height="26" class="toolbar-logo" />
     <span class="toolbar-wordmark" data-tauri-drag-region>{$messages.appName}</span>
     <div class="menu-wrap">
@@ -543,11 +537,10 @@
   .folder-panel-toggle { margin-left: 12px; position: relative; }
   .folder-panel-toggle::before { content: ""; position: absolute; left: -7px; top: 6px; bottom: 6px; width: 1px; background: var(--app-border); }
 
-  .mac-window-controls { display: flex; align-items: center; gap: 8px; margin-right: 5px; padding: 0 3px; -webkit-app-region: no-drag; }
-  .mac-window-btn { width: 12px; height: 12px; padding: 0; border: .5px solid rgba(0,0,0,.18); border-radius: 50%; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.28); }
-  .mac-close { background: #ff5f57; }
-  .mac-minimize { background: #febc2e; }
-  .mac-maximize { background: #28c840; }
+  /* macOS keeps the native traffic lights in the transparent overlay titlebar.
+     The existing toolbar remains the first row; this inset only reserves the
+     native control area, while TabBar stays untouched on the second row. */
+  .toolbar-left.mac-native-titlebar { padding-left: 68px; }
 
   .menu-wrap { position: relative; }
   .app-menu-btn { padding: 4px 7px; border-radius: 6px; background: transparent; color: #636366; letter-spacing: 1px; }

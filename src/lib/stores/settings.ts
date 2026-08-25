@@ -12,6 +12,10 @@ export interface ReaderSettings {
   autoPresentMarp: boolean;
   /** TOC headings deeper than this level start collapsed; 6 means all. */
   tocDefaultDepth: number;
+  /** Restore each document's last TOC expansion state after its first open. */
+  rememberTocState: boolean;
+  /** Reopen filesystem-backed tabs and the active document on next launch. */
+  rememberOpenDocuments: boolean;
 }
 
 const STORAGE_KEY = "mdhero-settings";
@@ -35,6 +39,8 @@ function loadSettings(): ReaderSettings {
     showLineNumbers: true,
     autoPresentMarp: true,
     tocDefaultDepth: 3,
+    rememberTocState: false,
+    rememberOpenDocuments: false,
   };
 
   if (typeof localStorage === "undefined") return defaults;

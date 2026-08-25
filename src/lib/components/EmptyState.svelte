@@ -1,6 +1,6 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
-  import { openFileDialog, openFile, newDocument } from "../tauri/files";
+  import { openFileDialog, openFileWithPrompt, newDocument } from "../tauri/files";
   import { openFolder } from "../tauri/folders";
   import { recentFiles, recentFolders, clearRecentFiles, clearRecentFolders } from "../stores/recents";
   import { pinnedFolders } from "../stores/pinned";
@@ -118,7 +118,7 @@
     <img src={brandLogo} alt={$messages.appName} width="48" height="48" class="hero-logo" />
     <div class="hero-text">
       <h1 class="hero-title">{$messages.appName}</h1>
-      <p class="hero-desc">A native Markdown reader and editor.</p>
+      <p class="hero-desc">{$messages.homeDescription}</p>
     </div>
   </div>
 
@@ -167,13 +167,13 @@
   {#snippet recentsSection(twoCol: boolean)}
     <div class="section recents-section">
       <div class="section-header">
-        <h2 class="section-title">Recent Files</h2>
-        <button class="section-action" onclick={() => { clearRecentFiles(); }}>Clear</button>
+        <h2 class="section-title">{$messages.recentFiles}</h2>
+        <button class="section-action" onclick={() => { clearRecentFiles(); }}>{$messages.clear}</button>
       </div>
       <div class="card card-scroll uniform-card">
         <div class="recents-grid" class:two-col={twoCol}>
           {#each $recentFiles as file (file.path)}
-            {@render fileRow(file.name, shortenPath(file.path), formatTime(file.openedAt), () => openFile(file.path), 'file')}
+            {@render fileRow(file.name, shortenPath(file.path), formatTime(file.openedAt), () => openFileWithPrompt(file.path), 'file')}
           {/each}
         </div>
       </div>
@@ -183,8 +183,8 @@
   {#snippet recentFoldersSection()}
     <div class="section recent-folders-section">
       <div class="section-header">
-        <h2 class="section-title">Recent Folders</h2>
-        <button class="section-action" onclick={() => { clearRecentFolders(); }}>Clear</button>
+        <h2 class="section-title">{$messages.recentFolders}</h2>
+        <button class="section-action" onclick={() => { clearRecentFolders(); }}>{$messages.clear}</button>
       </div>
       <div class="card card-scroll uniform-card">
         {#each $recentFolders as folder (folder.path)}
@@ -232,7 +232,7 @@
           </div>
           <div class="card card-scroll uniform-card">
             {#each plans as plan (plan.path)}
-              {@render fileRow(formatPlanName(plan.name), shortenPath(plan.path), formatTime(plan.modified), () => openFile(plan.path), 'plan')}
+              {@render fileRow(formatPlanName(plan.name), shortenPath(plan.path), formatTime(plan.modified), () => openFileWithPrompt(plan.path), 'plan')}
             {/each}
           </div>
         </div>
@@ -257,7 +257,7 @@
               <div class="card-empty">No markdown files</div>
             {:else}
               {#each folderFiles[folder] as file (file.path)}
-                {@render fileRow(file.name, file.rel_path !== file.name ? file.rel_path : '', formatTime(file.modified), () => openFile(file.path), 'file')}
+                {@render fileRow(file.name, file.rel_path !== file.name ? file.rel_path : '', formatTime(file.modified), () => openFileWithPrompt(file.path), 'file')}
               {/each}
             {/if}
           </div>

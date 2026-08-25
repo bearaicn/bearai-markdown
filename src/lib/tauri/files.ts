@@ -6,6 +6,7 @@ import { document } from "../stores/document";
 import { tabStore } from "../stores/tabs";
 import { renderFull } from "../renderer/pipeline";
 import { addRecentFile } from "../stores/recents";
+import { openPathInNewWindow, requestOpenDestination } from "../stores/openDestination";
 
 export async function readMarkdownFile(path: string): Promise<string> {
   return invoke<string>("read_markdown_file", { path });
@@ -78,6 +79,19 @@ export async function openFile(path: string): Promise<void> {
   }
 }
 
+export async function openFileWithPrompt(path: string): Promise<void> {
+  const destination = await requestOpenDestination("file", path);
+  if (destination === "current") await openFile(path);
+  else if (destination === "new-window") {
+    try {
+      await openPathInNewWindow("file", path);
+    } catch (error) {
+      console.error("Failed to open file in a new window:", error);
+      alert(`Failed to open a new window: ${error}`);
+    }
+  }
+}
+
 let newDocCounter = 0;
 
 /**
@@ -138,7 +152,7 @@ export async function openFileDialog(): Promise<void> {
     if (selected) {
       // selected can be string or string[] depending on version
       const path = typeof selected === "string" ? selected : (selected as any)?.path ?? String(selected);
-      await openFile(path);
+      await openFileWithPrompt(path);
     }
   } catch (err) {
     console.error("File dialog error:", err);

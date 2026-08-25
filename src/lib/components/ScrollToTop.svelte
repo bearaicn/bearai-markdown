@@ -1,24 +1,26 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { document as docStore } from "$lib/stores/document";
+  import { messages } from "$lib/i18n";
+  import { getContentScrollTop, scrollContentTo } from "$lib/utils/contentScroll";
 
   let visible = $state(false);
 
   onMount(() => {
     function update() {
-      visible = window.scrollY > 300;
+      visible = getContentScrollTop() > 300;
     }
-    window.addEventListener("scroll", update, { passive: true });
-    return () => window.removeEventListener("scroll", update);
+    window.addEventListener("content-scroll", update);
+    return () => window.removeEventListener("content-scroll", update);
   });
 
   function scrollToTop() {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    scrollContentTo({ top: 0, behavior: "smooth" });
   }
 </script>
 
 {#if visible && $docStore.renderedHtml}
-  <button class="scroll-top" onclick={scrollToTop} title="Scroll to top (gg)">
+  <button class="scroll-top" onclick={scrollToTop} title={$messages.scrollTop + ' (gg)'}>
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="4,10 8,6 12,10"/></svg>
   </button>
 {/if}

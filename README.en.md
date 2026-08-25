@@ -168,11 +168,17 @@ layout without exposing any user knowledge-base data.
 
 <img src=".github/assets/mermaid-zen.png" alt="BearAI Markdown focused reading layout with the folder and TOC panels hidden" width="800">
 
-## Installation
+## Download and installation
 
-BearAI Markdown is currently establishing its independent product baseline and release process.
-There is no official public binary download yet. Do not treat an upstream MDHero release as a
-BearAI Markdown installer.
+Official BearAI Markdown installers are published on the project's
+[GitHub Releases](https://github.com/bearaicn/bearai-markdown/releases) page. Windows users can
+choose the `.exe` (NSIS) or `.msi` installer, while macOS users can choose the `.dmg`. Do not
+treat an upstream MDHero release as a BearAI Markdown installer.
+
+> [!NOTE]
+> The current version can check BearAI Markdown's GitHub Releases for a newer version, but the
+> signed in-app download and installation chain is not complete. When an update is found, download
+> and install it manually from GitHub Releases.
 
 Run from source:
 
@@ -187,7 +193,54 @@ Build a local installer:
 pnpm tauri build
 ```
 
-Official download links will be added after the independent signing and release workflow is ready.
+## Release history
+
+This section records every release on BearAI Markdown's own version line. Upstream MDHero `v0.2.x`
+tags are not BearAI Markdown product versions.
+
+### v0.1.2 (2026-08-25)
+
+**Features and improvements**
+
+- Added folder workspaces, recent folders, a directory tree, and full-text Markdown search within the current folder.
+- Added resizable folder and document-outline panels with persisted visibility and width.
+- Added hierarchical TOC folding, configurable default depth, persisted folding state, and in-document result navigation.
+- Added tab overflow navigation and actions to close current/other/all tabs, copy file names or paths, and reveal files in the native file manager.
+- Added file and folder rename actions; double-clicking a folder renames it while double-clicking a file still opens it.
+- Added Chinese and English UI, configurable locale resources, multiple themes, and a custom cross-platform title bar.
+- Added a choice between opening in the current workspace or a new window, plus restoration of the previous document session.
+- Added recent files and folders to the Windows taskbar Jump List and recent files to the macOS system document list.
+
+**Bug fixes**
+
+- Fixed overlaps and inconsistent stacking between the folder panel, TOC, tabs, and toolbar.
+- Fixed TOC visibility, folding state, and panel widths being lost after restart.
+- Fixed Windows copied paths exposing the internal `\\?\` prefix and normalized platform path formats.
+- Fixed native or inconsistent context menus appearing after consecutive right-clicks in tabs, the directory tree, and document content.
+- Fixed the startup white screen and the extra flash after the first rendered interface appeared.
+- Fixed Windows taskbar recent-item launches opening a black console instead of a usable application window in debug builds.
+- Isolated development and installed Windows taskbar identities so a Vite-dependent debug executable cannot replace durable release entries.
+- Fixed missing taskbar recent folders after opening a folder in a new window or restoring a folder workspace on restart.
+- Fixed empty folders briefly rendering a loading placeholder and making the directory tree flash when expanded.
+- Fixed reading mode scrolling the whole application page; scrolling is now confined to the document content area while the toolbar, tab bar, and side panels stay fixed.
+- Fixed F5 closing all documents and returning home; F5 now reloads the active document.
+
+### v0.1.1 (2026-08-24)
+
+- Established the first independent BearAI Markdown installer and dual-repository release baseline.
+- Unified the Chinese and English product names, application icon, installation directory, and bilingual README navigation.
+- Introduced the initial folder workspace, collapsible TOC, custom title bar, and multilingual UI.
+
+## Next stage
+
+The next stage will proceed in this order, and completed work will move into the corresponding release entry:
+
+1. Establish a BearAI-specific Tauri updater signing key, GitHub Actions Secrets, public key, and
+   `latest.json`, then verify signed download and installation across two consecutive versions. The private key will never enter the repository.
+2. Validate window controls, system recent documents, installation, signing, and notarization on real macOS hardware. A Windows build cannot replace this acceptance step.
+3. Add complete update feedback for “already up to date,” network failures, and manual download.
+4. Resolve the remaining Svelte accessibility warnings and split oversized frontend build chunks.
+5. Plan a compatibility-safe migration away from the historical `mdhero` Tauri identifier without losing recent projects, settings, or reading progress.
 
 ## Keyboard shortcuts
 

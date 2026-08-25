@@ -15,6 +15,8 @@
 
 export type ViewMode = "viewer" | "raw" | "editor";
 
+import { getContentScrollElement, getContentScrollTop, scrollContentTo } from "./contentScroll";
+
 const TOOLBAR_TABBAR_HEIGHT = 80; // approximate sticky chrome at top
 
 /** Read the source line currently anchored at the top of the viewport. */
@@ -31,7 +33,7 @@ export function scrollToSourceLine(mode: ViewMode, line: number): void {
       const ta = getEditorEl();
       if (ta) ta.scrollTop = 0;
     } else {
-      window.scrollTo(0, 0);
+      scrollContentTo(0);
     }
     return;
   }
@@ -83,7 +85,10 @@ function scrollViewerToLine(anchor: number): void {
   }
 
   const rect = target.getBoundingClientRect();
-  window.scrollTo(0, window.scrollY + rect.top + frac * rect.height - TOOLBAR_TABBAR_HEIGHT);
+  const scroller = getContentScrollElement();
+  if (!scroller) return;
+  const relativeTop = rect.top - scroller.getBoundingClientRect().top;
+  scrollContentTo(getContentScrollTop() + relativeTop + frac * rect.height);
 }
 
 function lineOf(el: HTMLElement): number {
@@ -106,8 +111,10 @@ function scrollRawToLine(anchor: number): void {
   const pre = document.querySelector<HTMLPreElement>(".raw-source");
   if (!pre) return;
   const offsets = measureLineOffsets(pre, pre.textContent || "");
-  const preTopAbsolute = pre.getBoundingClientRect().top + window.scrollY;
-  window.scrollTo(0, preTopAbsolute + pixelAtLine(offsets, anchor) - TOOLBAR_TABBAR_HEIGHT);
+  const scroller = getContentScrollElement();
+  if (!scroller) return;
+  const preTop = pre.getBoundingClientRect().top - scroller.getBoundingClientRect().top + getContentScrollTop();
+  scrollContentTo(preTop + pixelAtLine(offsets, anchor));
 }
 
 // --- Editor (textarea with internal scroll) ---

@@ -14,6 +14,7 @@
     type Provider,
     type Prompt,
   } from "$lib/stores/aiLookup";
+  import { messages } from "$lib/i18n";
 
   // Bundled favicons for the 5 default providers. Sourced once from
   // DuckDuckGo's favicon service (icons.duckduckgo.com/ip3/...) to avoid
@@ -231,16 +232,16 @@
         <div class="actions">
           <button
             class="icon-btn"
-            title="Edit provider"
-            aria-label="Edit provider"
+            title={$messages.editProvider}
+            aria-label={$messages.editProvider}
             onclick={(e) => { e.stopPropagation(); startEditProvider(p); }}
           >
             <Pencil size={14} />
           </button>
           <button
             class="icon-btn icon-btn-danger"
-            title="Delete provider"
-            aria-label="Delete provider"
+            title={$messages.deleteProvider}
+            aria-label={$messages.deleteProvider}
             onclick={(e) => { e.stopPropagation(); handleRemoveProvider(p); }}
           >
             <Trash2 size={14} />
@@ -251,12 +252,12 @@
       {#if expanded}
         {#if isEditingProvider}
           <div class="edit-form provider-edit-form">
-            <input class="text-input" bind:value={pName} placeholder="Provider name" />
+            <input class="text-input" bind:value={pName} placeholder={$messages.providerName} />
             <input class="text-input mono" bind:value={pUrl} placeholder="https://example.com/?q={`{prompt}`}" />
             {#if pError}<div class="form-error">{pError}</div>{/if}
             <div class="form-actions">
-              <button class="form-btn" onclick={cancelAll}>Cancel</button>
-              <button class="form-btn form-btn-primary" onclick={() => saveProviderForm(p.id)}>Save</button>
+              <button class="form-btn" onclick={cancelAll}>{$messages.cancel}</button>
+              <button class="form-btn form-btn-primary" onclick={() => saveProviderForm(p.id)}>{$messages.save}</button>
             </div>
           </div>
         {/if}
@@ -266,12 +267,12 @@
             {@const isEditingThisPrompt = editingPromptKey === `${p.id}:${pr.id}`}
             {#if isEditingThisPrompt}
               <div class="edit-form prompt-edit-form">
-                <input class="text-input" bind:value={prName} placeholder="Prompt name" />
+                <input class="text-input" bind:value={prName} placeholder={$messages.promptName} />
                 <textarea class="textarea-input" bind:value={prTemplate} rows="2" placeholder="Template — use {`{selection}`} where the text goes"></textarea>
                 {#if prError}<div class="form-error">{prError}</div>{/if}
                 <div class="form-actions">
-                  <button class="form-btn" onclick={cancelAll}>Cancel</button>
-                  <button class="form-btn form-btn-primary" onclick={() => savePromptForm(p.id, pr.id)}>Save</button>
+                  <button class="form-btn" onclick={cancelAll}>{$messages.cancel}</button>
+                  <button class="form-btn form-btn-primary" onclick={() => savePromptForm(p.id, pr.id)}>{$messages.save}</button>
                 </div>
               </div>
             {:else}
@@ -280,16 +281,16 @@
                 <div class="actions">
                   <button
                     class="icon-btn"
-                    title="Edit prompt"
-                    aria-label="Edit prompt"
+                    title={$messages.editPrompt}
+                    aria-label={$messages.editPrompt}
                     onclick={() => startEditPrompt(p.id, pr)}
                   >
                     <Pencil size={13} />
                   </button>
                   <button
                     class="icon-btn icon-btn-danger"
-                    title="Delete prompt"
-                    aria-label="Delete prompt"
+                    title={$messages.deletePrompt}
+                    aria-label={$messages.deletePrompt}
                     onclick={() => handleRemovePrompt(p.id, pr)}
                   >
                     <Trash2 size={13} />
@@ -301,12 +302,12 @@
 
           {#if addingPromptFor === p.id}
             <div class="edit-form prompt-edit-form">
-              <input class="text-input" bind:value={prName} placeholder="Prompt name" />
+              <input class="text-input" bind:value={prName} placeholder={$messages.promptName} />
               <textarea class="textarea-input" bind:value={prTemplate} rows="2" placeholder="Template — use {`{selection}`} where the text goes"></textarea>
               {#if prError}<div class="form-error">{prError}</div>{/if}
               <div class="form-actions">
-                <button class="form-btn" onclick={cancelAll}>Cancel</button>
-                <button class="form-btn form-btn-primary" onclick={() => savePromptForm(p.id, null)}>Add</button>
+                <button class="form-btn" onclick={cancelAll}>{$messages.cancel}</button>
+                <button class="form-btn form-btn-primary" onclick={() => savePromptForm(p.id, null)}>{$messages.add}</button>
               </div>
             </div>
           {:else}
@@ -319,12 +320,12 @@
 
   {#if addingProviderOpen}
     <div class="edit-form add-provider-form">
-      <input class="text-input" bind:value={pName} placeholder="Provider name" />
+      <input class="text-input" bind:value={pName} placeholder={$messages.providerName} />
       <input class="text-input mono" bind:value={pUrl} placeholder="https://example.com/?q={`{prompt}`}" />
       {#if pError}<div class="form-error">{pError}</div>{/if}
       <div class="form-actions">
-        <button class="form-btn" onclick={cancelAll}>Cancel</button>
-        <button class="form-btn form-btn-primary" onclick={() => saveProviderForm(null)}>Add</button>
+        <button class="form-btn" onclick={cancelAll}>{$messages.cancel}</button>
+        <button class="form-btn form-btn-primary" onclick={() => saveProviderForm(null)}>{$messages.add}</button>
       </div>
     </div>
   {:else}
@@ -352,8 +353,8 @@
       {/if}
       <button
         class="reset-icon-btn"
-        title="Reset to defaults"
-        aria-label="Reset all providers and prompts to defaults"
+        title={$messages.resetDefaults}
+        aria-label={$messages.resetDefaults}
         onclick={handleResetDefaults}
       >
         <RotateCcw size={14} />

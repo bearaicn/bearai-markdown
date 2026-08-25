@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from "svelte";
   import { aiLookup, assembleUrl, type Provider } from "$lib/stores/aiLookup";
+  import { messages } from "$lib/i18n";
 
   let {
     visible = $bindable(false),
@@ -83,8 +84,8 @@
   <div class="dialog-backdrop" onclick={handleBackdropClick} onkeydown={handleKeydown}>
     <div class="dialog">
       <div class="dialog-header">
-        <h2 class="dialog-title">Custom AI Prompt</h2>
-        <button onclick={() => (visible = false)} class="dialog-close" aria-label="Close">
+        <h2 class="dialog-title">{$messages.customAiPrompt}</h2>
+        <button onclick={() => (visible = false)} class="dialog-close" aria-label={$messages.closeDialog}>
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
             <line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/>
           </svg>
@@ -94,11 +95,11 @@
       <div class="dialog-body">
         {#if hasSelection}
           <div class="field">
-            <div class="field-label">Selected text</div>
+            <div class="field-label">{$messages.selectedText}</div>
             <div class="selection-box" aria-readonly="true">{selection}</div>
           </div>
         {:else}
-          <p class="no-selection-hint">No selection — your prompt will be sent as-is.</p>
+          <p class="no-selection-hint">{$messages.noSelectionPrompt}</p>
         {/if}
 
         <div class="field">
@@ -119,9 +120,9 @@
         </div>
 
         <div class="field field-row">
-          <label class="field-label" for="custom-prompt-provider">Provider</label>
+          <label class="field-label" for="custom-prompt-provider">{$messages.provider}</label>
           {#if providers.length === 0}
-            <div class="no-providers">No providers configured — add one in Settings.</div>
+            <div class="no-providers">{$messages.noProviders}</div>
           {:else}
             <select
               id="custom-prompt-provider"

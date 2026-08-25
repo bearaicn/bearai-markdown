@@ -2,9 +2,11 @@
   import { X } from "@lucide/svelte";
   import { settings } from "$lib/stores/settings";
   import AILookupSettings from "./AILookupSettings.svelte";
-  import { messages } from "$lib/i18n";
+  import { messages, locale } from "$lib/i18n";
+  import { themeMode, themeOptions, setTheme, type ThemeMode } from "$lib/stores/theme";
 
   let { visible = $bindable(false) }: { visible: boolean } = $props();
+  let activeGroup = $state<"behavior" | "editor" | "toc" | "startup" | "appearance" | "ai">("behavior");
 
   function handleBackdropClick(e: MouseEvent) {
     if (e.target === e.currentTarget) visible = false;
@@ -24,19 +26,29 @@
     <div class="dialog">
       <div class="dialog-header">
         <h2 class="dialog-title">{$messages.settings}</h2>
-        <button onclick={() => (visible = false)} class="dialog-close" aria-label="Close">
+        <button onclick={() => (visible = false)} class="dialog-close" aria-label={$messages.closeDialog}>
           <X size={16} />
         </button>
       </div>
 
       <div class="dialog-body">
+        <nav class="settings-nav" aria-label={$messages.settings}>
+          <button class:active={activeGroup === "behavior"} onclick={() => (activeGroup = "behavior")}>{$messages.behavior}</button>
+          <button class:active={activeGroup === "editor"} onclick={() => (activeGroup = "editor")}>{$messages.editor}</button>
+          <button class:active={activeGroup === "toc"} onclick={() => (activeGroup = "toc")}>{$messages.tocSettings}</button>
+          <button class:active={activeGroup === "startup"} onclick={() => (activeGroup = "startup")}>{$messages.startup}</button>
+          <button class:active={activeGroup === "appearance"} onclick={() => (activeGroup = "appearance")}>{$messages.appearance}</button>
+          <button class:active={activeGroup === "ai"} onclick={() => (activeGroup = "ai")}>{$messages.aiLookup}</button>
+        </nav>
+        <div class="settings-content">
+        {#if activeGroup === "behavior"}
         <section class="settings-section">
           <h3 class="section-title">{$messages.behavior}</h3>
 
           <label class="setting-row">
             <div class="setting-text">
               <span class="setting-label">{$messages.closeOnEscape}</span>
-              <span class="setting-hint">Press ESC to close the current tab. App quits after the last tab.</span>
+              <span class="setting-hint">{$messages.escapeCloseHint}</span>
             </div>
             <input
               type="checkbox"
@@ -49,7 +61,7 @@
           <label class="setting-row">
             <div class="setting-text">
               <span class="setting-label">{$messages.autoPresent}</span>
-              <span class="setting-hint">Open documents with <code>marp: true</code> frontmatter as a slideshow.</span>
+              <span class="setting-hint">{$messages.autoPresentHint}</span>
             </div>
             <input
               type="checkbox"
@@ -60,13 +72,14 @@
           </label>
         </section>
 
+        {:else if activeGroup === "editor"}
         <section class="settings-section">
           <h3 class="section-title">{$messages.editor}</h3>
 
           <label class="setting-row">
             <div class="setting-text">
               <span class="setting-label">{$messages.lineNumbers}</span>
-              <span class="setting-hint">Show a line-number gutter in the editor.</span>
+              <span class="setting-hint">{$messages.lineNumbersHint}</span>
             </div>
             <input
               type="checkbox"
@@ -77,6 +90,7 @@
           </label>
         </section>
 
+        {:else if activeGroup === "toc"}
         <section class="settings-section">
           <h3 class="section-title">{$messages.tocSettings}</h3>
           <label class="setting-row">
@@ -89,13 +103,58 @@
               <option value={6}>{$messages.depthAll}</option>
             </select>
           </label>
+          <label class="setting-row">
+            <div class="setting-text">
+              <span class="setting-label">{$messages.rememberTocState}</span>
+              <span class="setting-hint">{$messages.rememberTocStateHint}</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={$settings.rememberTocState}
+              onchange={(e) => settings.update((s) => ({ ...s, rememberTocState: e.currentTarget.checked }))}
+              class="setting-switch"
+            />
+          </label>
         </section>
 
+        {:else if activeGroup === "startup"}
+        <section class="settings-section">
+          <h3 class="section-title">{$messages.startup}</h3>
+          <label class="setting-row">
+            <div class="setting-text">
+              <span class="setting-label">{$messages.rememberOpenDocuments}</span>
+              <span class="setting-hint">{$messages.rememberOpenDocumentsHint}</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={$settings.rememberOpenDocuments}
+              onchange={(e) => settings.update((s) => ({ ...s, rememberOpenDocuments: e.currentTarget.checked }))}
+              class="setting-switch"
+            />
+          </label>
+        </section>
+
+        {:else if activeGroup === "appearance"}
+        <section class="settings-section">
+          <h3 class="section-title">{$messages.appearance}</h3>
+          <div class="theme-grid">
+            {#each themeOptions as option}
+              <button type="button" class="theme-option" class:active={$themeMode === option.id} onclick={() => setTheme(option.id as ThemeMode)} aria-pressed={$themeMode === option.id}>
+                <span class="theme-swatch" style:background={option.color}></span>
+                <span>{option.id === "system" ? $messages.followSystem : ($locale === "zh-CN" ? option.name : option.nameEn)}</span>
+                <span class="theme-check">{$themeMode === option.id ? "✓" : ""}</span>
+              </button>
+            {/each}
+          </div>
+        </section>
+        {:else}
         <section class="settings-section">
           <h3 class="section-title">{$messages.aiLookup}</h3>
-          <p class="section-hint">Right-click selected text in the viewer to send it to an AI tool. Manage providers and saved prompts below.</p>
+          <p class="section-hint">{$messages.aiLookupHint}</p>
           <AILookupSettings />
         </section>
+        {/if}
+        </div>
       </div>
     </div>
   </div>
@@ -116,10 +175,11 @@
   }
 
   .dialog {
-    width: 640px;
-    max-height: 75vh;
-    background: white;
-    border: 1px solid #e5e5ea;
+    width: min(780px, calc(100vw - 40px));
+    height: min(680px, 78vh);
+    background: var(--app-panel);
+    color: var(--app-text);
+    border: 1px solid var(--app-border);
     border-radius: 12px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 4px 16px rgba(0,0,0,0.08);
     display: flex;
@@ -127,8 +187,7 @@
     overflow: hidden;
   }
 
-  .setting-select { min-width: 110px; padding: 6px 9px; border: 1px solid #d1d1d6; border-radius: 7px; background: #fff; color: #1c1c1e; }
-  :global(html.dark) .setting-select { background: #2c2c2e; border-color: #48484a; color: #f2f2f7; }
+  .setting-select { min-width: 110px; padding: 6px 9px; border: 1px solid var(--app-border); border-radius: 7px; background: var(--app-panel); color: var(--app-text); }
 
   :global(html.dark) .dialog {
     background: #2c2c2e;
@@ -184,23 +243,55 @@
   }
 
   .dialog-body {
-    padding: 8px 16px 16px;
-    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 156px minmax(0, 1fr);
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
     overscroll-behavior: contain;
+  }
+
+  .settings-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px 9px;
+    background: var(--app-chrome);
+    border-right: 1px solid var(--app-border);
+  }
+
+  .settings-nav button {
+    height: 34px;
+    padding: 0 11px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--app-muted);
+    font: inherit;
+    font-size: 12.5px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .settings-nav button:hover { background: var(--app-hover); color: var(--app-text); }
+  .settings-nav button.active { background: var(--app-selection); color: var(--app-accent); font-weight: 600; }
+
+  .settings-content {
+    min-width: 0;
+    overflow-y: auto;
+    padding: 10px 20px 22px;
   }
 
   .settings-section {
     padding-top: 12px;
   }
 
-  .settings-section + .settings-section {
-    border-top: 1px solid #f2f2f7;
-    margin-top: 16px;
-  }
-
-  :global(html.dark) .settings-section + .settings-section {
-    border-top-color: #3a3a3c;
-  }
+  .theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .theme-option { display: grid; grid-template-columns: 20px 1fr 18px; align-items: center; gap: 9px; min-height: 42px; padding: 7px 10px; border: 1px solid var(--app-border); border-radius: 8px; background: var(--app-panel); color: var(--app-text); text-align: left; cursor: pointer; }
+  .theme-option:hover { background: var(--app-hover); }
+  .theme-option.active { border-color: var(--app-accent); box-shadow: 0 0 0 1px var(--app-accent); }
+  .theme-swatch { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); }
+  .theme-check { color: var(--app-accent); font-weight: 700; }
 
   .section-title {
     font-size: 11px;
@@ -289,10 +380,17 @@
 
   .setting-switch:checked,
   :global(html.dark) .setting-switch:checked {
-    background: #0891B2;
+    background: var(--app-accent);
   }
 
   .setting-switch:checked::before {
     transform: translateX(16px);
+  }
+
+  @media (max-width: 680px) {
+    .dialog { height: min(720px, 84vh); }
+    .dialog-body { grid-template-columns: 118px minmax(0, 1fr); }
+    .settings-content { padding-inline: 14px; }
+    .theme-grid { grid-template-columns: 1fr; }
   }
 </style>

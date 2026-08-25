@@ -62,7 +62,31 @@ export async function copyAsMarkdown(markdown: string): Promise<boolean> {
  */
 export async function copyPath(path: string): Promise<boolean> {
   try {
-    await navigator.clipboard.writeText(path);
+    await navigator.clipboard.writeText(normalizePathForClipboard(path));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function normalizePathForClipboard(path: string, platform = typeof navigator === "undefined" ? "" : navigator.platform): string {
+  const isWindows = /win/i.test(platform) || /^\\\\\?\\/.test(path) || /^[A-Za-z]:[\\/]/.test(path);
+  if (!isWindows) return path.replace(/\\/g, "/");
+
+  const withoutNamespace = path
+    .replace(/^\\\\\?\\UNC\\/i, "\\\\")
+    .replace(/^\\\\\?\\/, "");
+  return withoutNamespace.replace(/\//g, "\\");
+}
+
+export function fileNameFromClipboardPath(path: string): string {
+  const normalized = path.replace(/[\\/]+$/, "");
+  return normalized.split(/[\\/]/).pop() ?? normalized;
+}
+
+export async function copyFileName(path: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(fileNameFromClipboardPath(path));
     return true;
   } catch {
     return false;

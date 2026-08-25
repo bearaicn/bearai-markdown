@@ -1,6 +1,6 @@
 [package]
 name = "bearai-markdown"
-version = "0.1.1"
+version = "0.1.2"
 description = "BearAI Markdown desktop reader, editor, and folder browser"
 authors = ["BearAI Contributors"]
 edition = "2021"
@@ -24,6 +24,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-cli = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+urlencoding = "2"
 notify = { version = "7", features = ["macos_fsevent"] }
 notify-debouncer-mini = "0.5"
 tauri-plugin-process = "2"
@@ -31,6 +32,14 @@ tauri-plugin-window-state = "2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.61.3", features = ["Win32_Foundation", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Win32_UI_Shell", "Win32_UI_Shell_Common", "Win32_UI_Shell_PropertiesSystem"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.4"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSDocumentController"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSString", "NSURL"] }
 
 [dev-dependencies]
 # `test` enables Tauri's mock runtime (tauri::test) used by the menu test.

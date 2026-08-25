@@ -4,6 +4,7 @@
   import { renderFull } from "$lib/renderer/pipeline";
   import { tabStore } from "$lib/stores/tabs";
   import { document as docStore } from "$lib/stores/document";
+  import { messages } from "$lib/i18n";
 
   let { visible = $bindable(false), defaultMode = "paste" }: { visible: boolean; defaultMode?: "paste" | "url" } = $props();
 
@@ -154,18 +155,18 @@
       <div class="modal-header">
         <div class="modal-header-left">
           <div class="mode-tabs">
-            <button class="mode-tab" class:active={mode === "paste"} onclick={() => (mode = "paste")}>Paste</button>
-            <button class="mode-tab" class:active={mode === "url"} onclick={() => (mode = "url")}>Open URL</button>
+            <button class="mode-tab" class:active={mode === "paste"} onclick={() => (mode = "paste")}>{$messages.pasteMode}</button>
+            <button class="mode-tab" class:active={mode === "url"} onclick={() => (mode = "url")}>{$messages.urlMode}</button>
           </div>
           {#if mode === "paste" && autoDetected}
-            <span class="llm-badge">LLM detected</span>
+            <span class="llm-badge">{$messages.llmDetected}</span>
           {/if}
         </div>
         <div class="modal-header-right">
           {#if mode === "paste"}
             <label class="llm-toggle">
               <input type="checkbox" bind:checked={llmMode} />
-              <span>LLM Mode</span>
+              <span>{$messages.llmMode}</span>
             </label>
           {/if}
           <button onclick={() => (visible = false)} class="modal-close">
@@ -187,8 +188,8 @@
         <div class="modal-footer">
           <span class="modal-hint">Cmd+Enter to render</span>
           <div class="modal-actions">
-            <button onclick={() => (visible = false)} class="btn-cancel">Cancel</button>
-            <button onclick={handleRender} disabled={!text.trim()} class="btn-render">Render</button>
+            <button onclick={() => (visible = false)} class="btn-cancel">{$messages.cancel}</button>
+            <button onclick={handleRender} disabled={!text.trim()} class="btn-render">{$messages.render}</button>
           </div>
         </div>
       {:else}
@@ -208,7 +209,7 @@
             <div class="url-error">{urlError}</div>
           {/if}
           <div class="url-hints">
-            <p class="url-hints-title">Supported URLs:</p>
+            <p class="url-hints-title">{$messages.supportedUrls}</p>
             <ul>
               <li>GitHub — <code>github.com/user/repo/blob/main/file.md</code></li>
               <li>Gist — <code>gist.github.com/user/id</code></li>
@@ -222,7 +223,7 @@
         <div class="modal-footer">
           <span class="modal-hint">Cmd+Enter to fetch</span>
           <div class="modal-actions">
-            <button onclick={() => (visible = false)} class="btn-cancel">Cancel</button>
+            <button onclick={() => (visible = false)} class="btn-cancel">{$messages.cancel}</button>
           </div>
         </div>
       {/if}

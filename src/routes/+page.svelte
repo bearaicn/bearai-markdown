@@ -11,6 +11,7 @@
     openFileDialog,
     openWithSystem,
     pathExists,
+    reloadCurrentFile,
     saveAsNewDocument,
     saveFile,
   } from "$lib/tauri/files";
@@ -45,12 +46,17 @@
   import Editor from "$lib/components/Editor.svelte";
   import PresentationView from "$lib/components/PresentationView.svelte";
   import FolderSidebar from "$lib/components/FolderSidebar.svelte";
+  import { getContentClientHeight, getContentScrollElement, getContentScrollHeight, getContentScrollTop, scrollContentBy, scrollContentTo } from "$lib/utils/contentScroll";
+  import OpenDestinationDialog from "$lib/components/OpenDestinationDialog.svelte";
   import { folderWorkspace } from "$lib/stores/folderWorkspace";
-  import { updateScrollPercent } from "$lib/stores/recents";
+  import { folderName, openFolderInCurrentWindow } from "$lib/tauri/folders";
+  import { addRecentFolder, updateScrollPercent } from "$lib/stores/recents";
   import { checkForUpdates, updateAvailable, updateDismissed, checkInFlight } from "$lib/stores/updater";
   import { get } from "svelte/store";
   import { getCurrentSourceLine, scrollToSourceLine, type ViewMode } from "$lib/utils/scroll-sync";
   import { saveProgress, getProgress } from "$lib/stores/readingProgress";
+  import { clearDocumentSession, loadDocumentSession, saveDocumentSession } from "$lib/stores/documentSession";
+  import { panelLayout } from "$lib/stores/panelLayout";
 
   let rendererReady = $state(false);
   let lastWatchedPath: string | null = null;
@@ -103,7 +109,7 @@
     clearTimeout(scrollSaveTimer);
     scrollSaveTimer = setTimeout(() => {
       // Tiny-file edge case: skip save if document fits in viewport
-      if (document.documentElement.scrollHeight <= window.innerHeight) return;
+      if (getContentScrollHeight() <= getContentClientHeight()) return;
       const line = getCurrentSourceLine("viewer");
       saveProgress(tab.filePath, line);
     }, 500);
@@ -115,7 +121,7 @@
     if (!tab || tab.isEditing) return;
     if (tab.filePath.startsWith("paste://")) return;
     // Tiny-file edge case: skip save if document fits in viewport
-    if (document.documentElement.scrollHeight <= window.innerHeight) return;
+    if (getContentScrollHeight() <= getContentClientHeight()) return;
     const line = getCurrentSourceLine("viewer");
     saveProgress(tab.filePath, line);
   }
@@ -149,8 +155,7 @@
         if (!target) target = elements[elements.length - 1];
 
         // Tiny-file edge case: don't restore if document fits in viewport
-        const docHeight = document.documentElement.scrollHeight;
-        if (docHeight <= window.innerHeight) { isRestoring = false; return; }
+        if (getContentScrollHeight() <= getContentClientHeight()) { isRestoring = false; return; }
 
         target.scrollIntoView({ behavior: "smooth", block: "start" });
 
@@ -158,10 +163,10 @@
         // for WebViews that don't support the scrollend event
         const clearRestoring = () => {
           clearTimeout(restoreTimer);
-          window.removeEventListener("scrollend", clearRestoring);
+          getContentScrollElement()?.removeEventListener("scrollend", clearRestoring);
           isRestoring = false;
         };
-        window.addEventListener("scrollend", clearRestoring, { once: true });
+        getContentScrollElement()?.addEventListener("scrollend", clearRestoring, { once: true });
         restoreTimer = setTimeout(clearRestoring, 1000);
       });
     });
@@ -475,6 +480,11 @@
     return true;
   }
 
+  function handleContentScroll() {
+    handleScrollForProgress();
+    window.dispatchEvent(new Event("content-scroll"));
+  }
+
   async function handleCloseTabs(ids: string[]): Promise<boolean> {
     const idSet = new Set(ids);
     const targets = $tabs.filter((tab) => idSet.has(tab.id));
@@ -516,15 +526,31 @@
   }
 
   onMount(() => {
-    initRenderer();
-    rendererReady = true;
+    const suppressNativeContextMenu = (event: MouseEvent) => event.preventDefault();
+    document.addEventListener("contextmenu", suppressNativeContextMenu, { capture: true });
+    const isolatedStartupWindow = new URLSearchParams(window.location.search).has("open-path");
+    const rememberedSession = loadDocumentSession();
+    let sessionPersistenceReady = false;
+    const pendingOpenPaths: string[] = [];
+
+    const persistSession = () => {
+      if (!sessionPersistenceReady || isolatedStartupWindow) return;
+      if (get(settings).rememberOpenDocuments) saveDocumentSession(get(tabs), get(activeTabId));
+      else clearDocumentSession();
+    };
+    const unsubscribeTabs = tabs.subscribe(persistSession);
+    const unsubscribeActiveTab = activeTabId.subscribe(persistSession);
+    const unsubscribeSettings = settings.subscribe((value) => {
+      if (!value.rememberOpenDocuments) clearDocumentSession();
+      else persistSession();
+    });
 
     // Expose functions for native menu and OS file-open handlers
     (window as any).__mdhero_open_file = () => { openVisible = true; };
     (window as any).__mdhero_open_path = (path: string) => {
-      if (path && rendererReady) {
-        openFile(path);
-      }
+      if (!path) return;
+      if (rendererReady) openFile(path);
+      else pendingOpenPaths.push(path);
     };
     (window as any).__mdhero_paste = () => {
       pasteDefaultMode = "paste";
@@ -570,6 +596,31 @@
       }
       saveProgressNow();
       invoke("quit_app").catch(() => {});
+    };
+    // A secondary workspace window owns only its local tabs. Closing it must
+    // neither terminate the main window nor overwrite the main session.
+    (window as any).__mdhero_close_child = async () => {
+      const dirty = $tabs.filter((t) => t.dirty);
+      if (dirty.length > 0) {
+        try {
+          const { ask } = await import("@tauri-apps/plugin-dialog");
+          const msg =
+            dirty.length === 1
+              ? `You have unsaved changes to ${dirty[0].fileName}.`
+              : `You have unsaved changes in ${dirty.length} tabs.`;
+          const keepEditing = await ask(msg, {
+            title: "Unsaved changes",
+            kind: "warning",
+            okLabel: "Keep Editing",
+            cancelLabel: "Discard",
+          });
+          if (keepEditing) return;
+        } catch {
+          // Destroy the child rather than leave a window trapped by prevent_close.
+        }
+      }
+      saveProgressNow();
+      invoke("destroy_current_window").catch(() => {});
     };
     (window as any).__mdhero_check_updates = async () => {
       if (get(checkInFlight)) return;
@@ -622,32 +673,75 @@
     window.addEventListener("keyup", handleKeyup);
     // Safety net: if focus leaves while j/k is held, keyup may never fire — stop the loop.
     window.addEventListener("blur", stopScroll);
-    window.addEventListener("scroll", handleScrollForProgress, { passive: true });
     window.addEventListener("beforeunload", saveProgressNow);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     void (async () => {
-      // Check for files opened via "Open With" / double-click (buffered in Rust state)
       try {
-        const { invoke } = await import("@tauri-apps/api/core");
-        const openedFiles = await invoke<string[]>("get_opened_files");
-        if (openedFiles.length > 0) {
-          await openFile(openedFiles[0]);
-        }
-      } catch {}
+        await initRenderer();
 
-      // Check for updates (non-blocking, skips in dev)
-      checkForUpdates();
-
-      // Check for CLI file argument
-      try {
-        const { getMatches } = await import("@tauri-apps/plugin-cli");
-        const matches = await getMatches();
-        if (matches.args?.file?.value) {
-          await openFile(matches.args.file.value as string);
+        const startupParams = new URLSearchParams(window.location.search);
+        let startupKind = startupParams.get("open-kind");
+        let startupPath = startupParams.get("open-path");
+        if (!startupPath) {
+          try {
+            const startupItem = await invoke<{ kind: string; path: string } | null>("get_startup_item");
+            startupKind = startupItem?.kind ?? null;
+            startupPath = startupItem?.path ?? null;
+          } catch {}
         }
-      } catch {
-        // CLI plugin may not be available in dev
+        if (startupPath && startupKind === "folder") await openFolderInCurrentWindow(startupPath);
+        else if (startupPath && startupKind === "file") await openFile(startupPath);
+
+        if (!startupPath && get(settings).rememberOpenDocuments) {
+          for (const path of rememberedSession.paths) await openFile(path);
+          if (rememberedSession.activePath) {
+            const restoredActive = get(tabs).find((tab) => tab.filePath === rememberedSession.activePath);
+            if (restoredActive) tabStore.switchTab(restoredActive.id);
+          }
+        }
+
+        // Reconcile older persisted workspace state with the unified recent
+        // items store so a native Jump List rebuild cannot lose the folder.
+        const restoredFolderPath = get(folderWorkspace).rootPath;
+        if (restoredFolderPath) {
+          addRecentFolder(restoredFolderPath, folderName(restoredFolderPath));
+        }
+
+        // Check for files opened via "Open With" / double-click (buffered in Rust state)
+        try {
+          const { invoke } = await import("@tauri-apps/api/core");
+          const openedFiles = await invoke<string[]>("get_opened_files");
+          if (openedFiles.length > 0) {
+            await openFile(openedFiles[0]);
+          }
+        } catch {}
+
+        // Check for updates (non-blocking, skips in dev)
+        checkForUpdates();
+
+        // Check for CLI file argument
+        try {
+          const { getMatches } = await import("@tauri-apps/plugin-cli");
+          const matches = await getMatches();
+          if (matches.args?.file?.value) {
+            await openFile(matches.args.file.value as string);
+          }
+        } catch {
+          // CLI plugin may not be available in dev
+        }
+
+        for (const path of pendingOpenPaths.splice(0)) await openFile(path);
+      } finally {
+        sessionPersistenceReady = true;
+        persistSession();
+        rendererReady = true;
+        // The configured main window stays hidden through renderer and session
+        // restoration. Reveal only the completed Svelte frame so users never
+        // see WebView2's blank host surface or an intermediate Home/loading
+        // state before their remembered document appears.
+        await tick();
+        await getCurrentWindow().show().catch(() => {});
       }
     })();
 
@@ -656,9 +750,13 @@
       window.removeEventListener("keyup", handleKeyup);
       window.removeEventListener("blur", stopScroll);
       stopScroll();
-      window.removeEventListener("scroll", handleScrollForProgress);
       window.removeEventListener("beforeunload", saveProgressNow);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      unsubscribeTabs();
+      unsubscribeActiveTab();
+      unsubscribeSettings();
+      document.removeEventListener("contextmenu", suppressNativeContextMenu, { capture: true });
+      delete (window as any).__mdhero_close_child;
     };
   });
 
@@ -699,7 +797,7 @@
       // First frame establishes the baseline timestamp; no movement yet.
       const dt = scrollLastTs === 0 ? 0 : ts - scrollLastTs;
       scrollLastTs = ts;
-      window.scrollBy(0, scrollDir * SCROLL_SPEED * (dt / 1000));
+      scrollContentBy(scrollDir * SCROLL_SPEED * (dt / 1000));
       scrollRAF = requestAnimationFrame(step);
     };
     scrollRAF = requestAnimationFrame(step);
@@ -742,23 +840,24 @@
   function jumpToHeading(direction: "prev" | "next") {
     const headings = document.querySelectorAll("article h1[id], article h2[id], article h3[id], article h4[id], article h5[id], article h6[id]");
     if (headings.length === 0) return;
-    const offset = 80;
-    const scrollY = window.scrollY + offset;
+    const scroller = getContentScrollElement();
+    if (!scroller) return;
+    const scrollY = getContentScrollTop();
 
     if (direction === "next") {
       for (const h of headings) {
-        const top = (h as HTMLElement).offsetTop;
+        const top = getContentScrollTop() + (h as HTMLElement).getBoundingClientRect().top - scroller.getBoundingClientRect().top;
         if (top > scrollY + 5) {
-          window.scrollTo({ top: top - offset, behavior: "smooth" });
+          scrollContentTo({ top, behavior: "smooth" });
           return;
         }
       }
     } else {
       const arr = Array.from(headings).reverse();
       for (const h of arr) {
-        const top = (h as HTMLElement).offsetTop;
+        const top = getContentScrollTop() + (h as HTMLElement).getBoundingClientRect().top - scroller.getBoundingClientRect().top;
         if (top < scrollY - 5) {
-          window.scrollTo({ top: top - offset, behavior: "smooth" });
+          scrollContentTo({ top, behavior: "smooth" });
           return;
         }
       }
@@ -782,6 +881,23 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    // F5 reloads the active document from disk instead of reloading the WebView,
+    // which would destroy the in-memory tab session and return to Home.
+    if (e.key === "F5") {
+      e.preventDefault();
+      const tab = tabStore.getActiveTab();
+      if (tab && !/^(new|paste|url):\/\//i.test(tab.filePath)) void reloadCurrentFile(tab.filePath);
+      return;
+    }
+
+    // Cmd/Ctrl+O opens the in-app picker so recent files and folders follow
+    // the same current-workspace/new-window routing as the toolbar.
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "o") {
+      e.preventDefault();
+      openVisible = true;
+      return;
+    }
+
     // Cmd+1-9 tab switching
     if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "9") {
       e.preventDefault();
@@ -931,23 +1047,23 @@
       case "d":
         // half page down
         e.preventDefault();
-        window.scrollBy({ top: window.innerHeight / 2, behavior: "smooth" });
+        scrollContentBy({ top: getContentClientHeight() / 2, behavior: "smooth" });
         break;
       case "u":
         // half page up
         e.preventDefault();
-        window.scrollBy({ top: -window.innerHeight / 2, behavior: "smooth" });
+        scrollContentBy({ top: -getContentClientHeight() / 2, behavior: "smooth" });
         break;
       case "G":
         // Shift+G — go to bottom
         e.preventDefault();
-        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+        scrollContentTo({ top: getContentScrollHeight(), behavior: "smooth" });
         break;
       case "g":
         // gg — go to top (double tap g within 500ms)
         if (lastKey === "g" && now - lastKeyTime < 500) {
           e.preventDefault();
-          window.scrollTo({ top: 0, behavior: "smooth" });
+          scrollContentTo({ top: 0, behavior: "smooth" });
           lastKey = "";
           return;
         }
@@ -997,7 +1113,7 @@
       const prevTab = allTabs.find((t) => t.id === prevTabId);
       if (prevTab && !prevTab.isEditing && !prevTab.filePath.startsWith("paste://")) {
         clearTimeout(scrollSaveTimer);
-        if (document.documentElement.scrollHeight > window.innerHeight) {
+        if (getContentScrollHeight() > getContentClientHeight()) {
           const line = getCurrentSourceLine("viewer");
           saveProgress(prevTab.filePath, line);
         }
@@ -1020,7 +1136,6 @@
         loading: false,
         error: null,
       });
-      tocVisible.set(false);
       tocEntries.set([]);
       getCurrentWindow().setTitle($messages.appName).catch(() => {});
       return;
@@ -1049,7 +1164,7 @@
     const savedScroll = tab.scrollTop;
     tick().then(() => {
       requestAnimationFrame(() => {
-        window.scrollTo(0, savedScroll);
+        scrollContentTo(savedScroll);
         // Restore reading progress (smooth-scroll to saved source line)
         // Only if the tab is at scroll 0 (freshly opened or re-opened)
         if (savedScroll === 0) {
@@ -1076,10 +1191,11 @@
   });
 </script>
 
-<div class="min-h-screen transition-colors page-root" style="--toolbar-height: {toolbarHeight}px; --app-chrome-height: {chromeHeight}px" class:folder-open={!zenMode && !presenting && !activeTab?.isEditing && Boolean($folderWorkspace.rootPath) && $folderWorkspace.sidebarVisible}>
+<div class="min-h-screen transition-colors page-root" style="--toolbar-height: {toolbarHeight}px; --app-chrome-height: {chromeHeight}px; --folder-sidebar-width: {$panelLayout.folderWidth}px; --toc-sidebar-width: {$panelLayout.tocWidth}px" class:folder-open={!zenMode && !presenting && !activeTab?.isEditing && Boolean($folderWorkspace.rootPath) && $folderWorkspace.sidebarVisible}>
   {#if !zenMode}
     <ProgressBar />
-    <Toolbar
+    <div class="app-chrome-shell">
+      <Toolbar
       onOpen={() => (openVisible = true)}
       onPaste={() => { pasteDefaultMode = "paste"; pasteVisible = true; }}
       onUrl={() => { pasteDefaultMode = "url"; pasteVisible = true; }}
@@ -1101,8 +1217,9 @@
       onQuit={() => (window as any).__mdhero_quit?.()}
       onCloseActive={() => activeTab && handleCloseTab(activeTab.id)}
       onCheckUpdates={() => (window as any).__mdhero_check_updates?.()}
-    />
-    <TabBar onCloseTab={handleCloseTab} onCloseTabs={handleCloseTabs} />
+      />
+      <TabBar onCloseTab={handleCloseTab} onCloseTabs={handleCloseTabs} />
+    </div>
   {/if}
   {#if !zenMode && !presenting && !activeTab?.isEditing}
     <FolderSidebar />
@@ -1117,14 +1234,15 @@
   <SettingsDialog bind:visible={settingsVisible} />
   <AboutDialog bind:visible={aboutVisible} />
   <CustomPromptModal bind:visible={customPromptVisible} selection={customPromptSelection} />
+  <OpenDestinationDialog />
 
   {#if !rendererReady}
     <div class="state-center">
-      <p class="state-text pulse">Loading renderer...</p>
+      <p class="state-text pulse">{$messages.loadingRenderer}</p>
     </div>
   {:else if $docStore.loading}
     <div class="state-center">
-      <p class="state-text pulse">Opening file...</p>
+      <p class="state-text pulse">{$messages.openingFile}</p>
     </div>
   {:else if $docStore.error}
     <div class="state-center">
@@ -1175,14 +1293,14 @@
         showLineNumbers={$settings.showLineNumbers}
       />
     {:else if rawMode}
-      <main class="content-main" class:toc-spaced={$tocVisible && $tocEntries.length > 0}>
+      <main class="content-main" class:toc-spaced={$tocVisible} onscroll={handleContentScroll}>
         <pre
           class="raw-source"
           style="font-size: {$settings.fontSize}px; line-height: {$settings.lineHeight}; max-width: {contentMaxWidth};"
         ><code>{$docStore.content}</code></pre>
       </main>
     {:else}
-      <main class="content-main" class:toc-spaced={$tocVisible && $tocEntries.length > 0}>
+      <main class="content-main" class:toc-spaced={$tocVisible} onscroll={handleContentScroll}>
         <FrontmatterBar />
         <MarkdownRenderer
           html={$docStore.renderedHtml}
@@ -1205,24 +1323,37 @@
 
 <style>
   .page-root {
-    background: #fafafa;
-    color: #1c1c1e;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--app-scene-bg);
+    background-attachment: fixed;
+    background-size: cover;
+    color: var(--app-text);
   }
 
   :global(html.dark) .page-root {
-    background: #161618;
-    color: #e5e5e7;
+    background: var(--app-bg);
+    color: var(--app-text);
+  }
+
+  .app-chrome-shell {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    isolation: isolate;
+    background: var(--app-chrome);
+    box-shadow: 0 1px 0 var(--app-border);
   }
 
   .page-root.folder-open :global(.empty-root) {
-    margin-left: calc(280px + max(0px, (100% - 1320px) / 2));
+    margin-left: calc(var(--folder-sidebar-width, 280px) + max(0px, (100% - 1320px) / 2));
     margin-right: 0;
-    width: calc(100% - 280px);
+    width: calc(100% - var(--folder-sidebar-width, 280px));
   }
 
   .page-root.folder-open .content-main,
   .page-root.folder-open .state-center {
-    margin-left: 280px;
+    margin-left: var(--folder-sidebar-width, 280px);
   }
 
   @media (max-width: 720px) {
@@ -1275,6 +1406,11 @@
   }
 
   .content-main {
+    box-sizing: border-box;
+    height: calc(100vh - var(--app-chrome-height, 76px));
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding-bottom: 4rem;
     transition: padding-right 0.15s ease;
   }
@@ -1298,7 +1434,7 @@
   }
 
   .content-main.toc-spaced {
-    padding-right: 240px;
+    padding-right: var(--toc-sidebar-width, 240px);
   }
 
   @media (max-width: 720px) {

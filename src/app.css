@@ -19,6 +19,17 @@
   --md-max-width: 720px;
   --md-font-size: 17px;
   --md-line-height: 1.7;
+  --app-bg: #fafafa;
+  --app-panel: #f5f5f7;
+  --app-chrome: #ffffff;
+  --app-tabbar: #dee1e6;
+  --app-text: #1c1c1e;
+  --app-muted: #636366;
+  --app-border: #d9d9de;
+  --app-hover: #e9e9ed;
+  --app-selection: #d9edf2;
+  --app-accent: #0891b2;
+  --app-scene-bg: #fafafa;
 
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-synthesis: none;
@@ -27,14 +38,32 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+html[data-theme="sage"] { --app-bg:#f7faf5;--app-panel:#edf4eb;--app-chrome:#fbfdf9;--app-tabbar:#d7e5d2;--app-text:#172719;--app-muted:#566a58;--app-border:#adc1aa;--app-hover:#dce9d8;--app-selection:#cfe5d3;--app-accent:#397044;--app-scene-bg:linear-gradient(rgba(247,250,245,.48),rgba(232,242,229,.68)),url('/themes/sage.svg'),#edf6ec; }
+html[data-theme="ocean"] { --app-bg:#f7faff;--app-panel:#edf4fb;--app-chrome:#fbfdff;--app-tabbar:#d3e2f4;--app-text:#15243a;--app-muted:#536a87;--app-border:#a8bdd9;--app-hover:#dbe8f7;--app-selection:#cfe0f4;--app-accent:#315f9b;--app-scene-bg:linear-gradient(rgba(245,250,255,.46),rgba(224,242,248,.66)),url('/themes/ocean.svg'),#edf5ff; }
+html[data-theme="rose"] { --app-bg:#fff8fa;--app-panel:#fdf0f3;--app-chrome:#fffdfd;--app-tabbar:#f4d5de;--app-text:#341a22;--app-muted:#805c67;--app-border:#d9aeb9;--app-hover:#f7e0e6;--app-selection:#f3ced8;--app-accent:#9b3f5a;--app-scene-bg:linear-gradient(rgba(255,248,251,.46),rgba(250,230,235,.68)),url('/themes/rose.svg'),#fff1f5; }
+html[data-theme="forest"] { --app-bg:#f3f8f3;--app-panel:#e7f0e9;--app-chrome:#fbfdf8;--app-tabbar:#ccdfd0;--app-text:#14251a;--app-muted:#526959;--app-border:#9fb8a5;--app-hover:#d7e7da;--app-selection:#c6dfcc;--app-accent:#275e3e;--app-scene-bg:linear-gradient(rgba(239,247,241,.48),rgba(220,235,226,.68)),url('/themes/forest.svg'),linear-gradient(145deg,#eef7f0,#dceae1); }
+html[data-theme="coast"] { --app-bg:#f4fbfb;--app-panel:#e6f4f5;--app-chrome:#fffefb;--app-tabbar:#cbe4e8;--app-text:#122b31;--app-muted:#4d6f76;--app-border:#99c0c7;--app-hover:#d8ecef;--app-selection:#c3e2e7;--app-accent:#236d7c;--app-scene-bg:linear-gradient(rgba(235,248,249,.68),rgba(224,239,240,.80)),url('/themes/coast.svg'),linear-gradient(145deg,#effafa,#dceff1); }
+html[data-theme="graphite"] { --app-bg:#252b31;--app-panel:#303840;--app-chrome:#2c333a;--app-tabbar:#20262c;--app-text:#f3f6f8;--app-muted:#b6c0c8;--app-border:#596672;--app-hover:#46535e;--app-selection:#3b5966;--app-accent:#78b6cf;--app-scene-bg:linear-gradient(rgba(27,34,40,.48),rgba(32,34,48,.66)),url('/themes/graphite.svg'),#242b31; }
+html[data-theme="mist"] { --app-bg:#f5fbfc;--app-panel:#eaf5f6;--app-chrome:#fbfeff;--app-tabbar:#d4e9ed;--app-text:#172a31;--app-muted:#58727a;--app-border:#a9cbd1;--app-hover:#dceef1;--app-selection:#c9e5ea;--app-accent:#27899b;--app-scene-bg:linear-gradient(rgba(246,252,253,.46),rgba(229,242,246,.68)),url('/themes/mist.svg'),#eaf6f8; }
+html[data-theme-mode="system"][data-theme="mist"] { --app-bg:#fafafa;--app-panel:#f5f5f7;--app-chrome:#fff;--app-tabbar:#dee1e6;--app-text:#1c1c1e;--app-muted:#636366;--app-border:#d9d9de;--app-hover:#e9e9ed;--app-selection:#d9edf2;--app-accent:#0891b2;--app-scene-bg:#fafafa; }
+html[data-theme-mode="system"][data-theme="graphite"] { --app-bg:#161618;--app-panel:#1c1c1e;--app-chrome:#161618;--app-tabbar:#111113;--app-text:#e5e5e7;--app-muted:#aeaeb2;--app-border:#343438;--app-hover:#2c2c2e;--app-selection:#14304a;--app-accent:#22d3ee;--app-scene-bg:#161618; }
+
 html {
-  background-color: #fafafa;
-  color: #1c1c1e;
+  background-color: var(--app-bg);
+  color: var(--app-text);
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
 }
 
 html.dark {
-  background-color: #161618;
-  color: #e5e5e7;
+  background-color: var(--app-bg);
+  color: var(--app-text);
 }
 
 /* Scrollbar styling */

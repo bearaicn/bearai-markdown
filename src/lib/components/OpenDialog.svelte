@@ -1,13 +1,14 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { open as openDirDialog } from "@tauri-apps/plugin-dialog";
-  import { openFile, openFileDialog } from "$lib/tauri/files";
+  import { openFileWithPrompt, openFileDialog } from "$lib/tauri/files";
   import { openFolder } from "$lib/tauri/folders";
   import { recentFiles, recentFolders, removeRecentFile } from "$lib/stores/recents";
   import { isUrl, toRawUrl, urlToFileName } from "$lib/utils/url";
   import { renderFull } from "$lib/renderer/pipeline";
   import { tabStore } from "$lib/stores/tabs";
   import { document as docStore } from "$lib/stores/document";
+  import { messages } from "$lib/i18n";
 
   let { visible = $bindable(false) }: { visible: boolean } = $props();
 
@@ -96,7 +97,7 @@
 
   function handleOpenFile(path: string) {
     visible = false;
-    openFile(path);
+    openFileWithPrompt(path);
   }
 
   function handleBackdropClick(e: MouseEvent) {
@@ -207,7 +208,7 @@
     <div class="dialog">
       <!-- Header -->
       <div class="dialog-header">
-        <h2 class="dialog-title">Open</h2>
+        <h2 class="dialog-title">{$messages.openDialogTitle}</h2>
         <button onclick={() => (visible = false)} class="dialog-close">
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg>
         </button>
@@ -219,14 +220,14 @@
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
             <path d="M2 5l4-3h8v11H2V5z"/><line x1="2" y1="5" x2="6" y2="5"/>
           </svg>
-          <span>Browse Files...</span>
+          <span>{$messages.browseFiles}...</span>
           <span class="browse-hint">Cmd+O</span>
         </button>
         <div class="url-row">
           <input
             type="text"
             bind:value={urlInput}
-            placeholder="Paste a URL to open..."
+            placeholder={$messages.urlPlaceholder}
             class="url-input-sm"
             onkeydown={(e) => e.key === 'Enter' && handleFetchUrl()}
           />
@@ -278,7 +279,7 @@
         {#if activeTab === "recent"}
           {#if $recentFiles.length === 0}
             <div class="empty-list">
-              <p>No recent files</p>
+              <p>{$messages.noRecentFiles}</p>
             </div>
           {:else}
             {#each $recentFiles as file (file.path)}
@@ -297,7 +298,7 @@
         {:else if activeTab === "folders"}
           {#if $recentFolders.length === 0}
             <div class="empty-list">
-              <p>No recent folders</p>
+              <p>{$messages.noRecentFolders}</p>
               <button class="add-folder-btn" onclick={handleAddFolder}>
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="7" y1="3" x2="7" y2="11"/><line x1="3" y1="7" x2="11" y2="7"/></svg>
                 Open a folder
@@ -318,7 +319,7 @@
                   <span class="folder-file-count">{folderFiles[folder]?.length ?? '...'}</span>
                   <span class="folder-path">{shortenPath(folder)}</span>
                 </button>
-                <button class="open-workspace-btn" onclick={() => handleOpenRecentFolder(folder)}>Open folder</button>
+                <button class="open-workspace-btn" onclick={() => handleOpenRecentFolder(folder)}>{$messages.openFolderAction}</button>
                 {#if expandedDialogFolders.has(folder)}
                   {#if folderFiles[folder]}
                     {#each folderFiles[folder] as file (file.path)}
@@ -336,7 +337,7 @@
                       </button>
                     {/each}
                   {:else}
-                    <div class="folder-loading-inline">Loading...</div>
+                    <div class="folder-loading-inline">{$messages.loading}</div>
                   {/if}
                 {/if}
               </div>
@@ -349,11 +350,11 @@
         {:else}
           {#if plansLoading}
             <div class="empty-list">
-              <p>Loading plans...</p>
+              <p>{$messages.loadingPlans}</p>
             </div>
           {:else if plans.length === 0}
             <div class="empty-list">
-              <p>No Claude Code plans found</p>
+              <p>{$messages.noPlans}</p>
               <span class="empty-hint">Plans are stored in ~/.claude/plans/</span>
             </div>
           {:else}

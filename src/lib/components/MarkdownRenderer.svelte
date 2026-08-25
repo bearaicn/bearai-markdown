@@ -1,10 +1,9 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
-  import { get } from "svelte/store";
-  import { invoke } from "@tauri-apps/api/core";
   import { settings, fontFamilyMap, getContentMaxWidth } from "$lib/stores/settings";
   import { tocEntries, activeHeadingId, extractToc, isObserverPaused } from "$lib/stores/toc";
   import { aiLookup, setPendingSelection } from "$lib/stores/aiLookup";
+  import { messages } from "$lib/i18n";
   import mermaid from "mermaid";
 
   let {
@@ -34,6 +33,9 @@
   let observer: IntersectionObserver | undefined;
   let lastMermaidTheme = "";
   let tooltipEl: HTMLDivElement | undefined;
+  let contextMenuOpen = $state(false);
+  let contextMenuPosition = $state({ x: 0, y: 0 });
+  let contextSelection = $state("");
 
   function hideTooltip() {
     if (tooltipEl) tooltipEl.style.display = "none";
@@ -116,32 +118,43 @@
     headings.forEach((h) => observer!.observe(h));
   }
 
-  // Right-click on the rendered article opens the AI Lookup native context
-  // menu. We suppress the default webview menu (Cut/Copy/Paste — they're
-  // rebuilt as the first items of our menu) and pass a slim provider payload
-  // to Rust (no urlTemplate, no prompt template body — those stay
-  // frontend-side; Rust only needs id/name to build the menu).
+  function closeContextMenu() {
+    contextMenuOpen = false;
+  }
+
+  async function copySelection() {
+    if (!contextSelection) return;
+    await navigator.clipboard.writeText(contextSelection);
+    closeContextMenu();
+  }
+
+  function runAiAction(menuId: string) {
+    setPendingSelection(contextSelection);
+    closeContextMenu();
+    (window as typeof window & { __mdhero_ai_lookup?: (id: string) => void }).__mdhero_ai_lookup?.(menuId);
+  }
+
   function handleContextMenu(e: MouseEvent) {
     e.preventDefault();
-    const selection = window.getSelection()?.toString() ?? "";
-    setPendingSelection(selection);
-
-    const providers = get(aiLookup).providers.map((p) => ({
-      id: p.id,
-      name: p.name,
-      prompts: p.prompts.map((pr) => ({ id: pr.id, name: pr.name })),
-    }));
-
-    invoke("show_ai_context_menu", {
-      providers,
-      hasSelection: selection.trim().length > 0,
-    }).catch((err) => console.error("show_ai_context_menu failed:", err));
+    contextSelection = window.getSelection()?.toString() ?? "";
+    const menuWidth = 250;
+    const menuHeight = Math.min(470, 170 + $aiLookup.providers.length * 34);
+    contextMenuPosition = {
+      x: Math.max(8, Math.min(e.clientX, window.innerWidth - menuWidth - 8)),
+      y: Math.max(8, Math.min(e.clientY, window.innerHeight - menuHeight - 8)),
+    };
+    contextMenuOpen = true;
   }
 
   onMount(() => {
     articleEl?.addEventListener("contextmenu", handleContextMenu);
+    const closeOnPointerDown = (event: PointerEvent) => {
+      if (!(event.target as HTMLElement).closest(".article-context-menu")) closeContextMenu();
+    };
+    document.addEventListener("pointerdown", closeOnPointerDown);
     return () => {
       articleEl?.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("pointerdown", closeOnPointerDown);
       observer?.disconnect();
       // Remove the body-level tooltip so it can't outlive the component.
       tooltipEl?.remove();
@@ -302,9 +315,64 @@
   {@html html}
 </article>
 
+{#if contextMenuOpen}
+  <div
+    class="article-context-menu"
+    style:left={`${contextMenuPosition.x}px`}
+    style:top={`${contextMenuPosition.y}px`}
+    role="menu"
+    aria-label={$messages.aiLookup}
+  >
+    <button class="context-item" disabled role="menuitem"><span>{$messages.contextCut}</span><kbd>Ctrl+X</kbd></button>
+    <button class="context-item" disabled={!contextSelection.trim()} onclick={copySelection} role="menuitem"><span>{$messages.contextCopy}</span><kbd>Ctrl+C</kbd></button>
+    <button class="context-item" disabled role="menuitem"><span>{$messages.contextPaste}</span><kbd>Ctrl+V</kbd></button>
+    <div class="context-separator"></div>
+    <button class="context-item" disabled={!contextSelection.trim()} onclick={() => runAiAction("aimenu:google")} role="menuitem">
+      <span>{$messages.contextSearchWeb}</span>
+    </button>
+    {#if $aiLookup.providers.length > 0}
+      <div class="context-separator"></div>
+      {#each $aiLookup.providers as provider (provider.id)}
+        <div class="context-submenu-wrap">
+          <button class="context-item" disabled={!contextSelection.trim()} role="menuitem" aria-haspopup="menu">
+            <span>{$messages.contextAsk} {provider.name}</span><span class="submenu-arrow">›</span>
+          </button>
+          <div class="context-submenu" role="menu">
+            {#if provider.prompts.length > 0}
+              {#each provider.prompts as prompt (prompt.id)}
+                <button class="context-item" onclick={() => runAiAction(`aimenu:template:${provider.id}:${prompt.id}`)} role="menuitem">{prompt.name}</button>
+              {/each}
+            {:else}
+              <button class="context-item" disabled role="menuitem">{$messages.contextNoPrompts}</button>
+            {/if}
+          </div>
+        </div>
+      {/each}
+    {/if}
+    <div class="context-separator"></div>
+    <button class="context-item" onclick={() => runAiAction("aimenu:custom")} role="menuitem">{$messages.contextCustomPrompt}</button>
+  </div>
+{/if}
+
 <style>
+  .article-context-menu { position: fixed; z-index: 80; width: 250px; padding: 5px; border: 1px solid var(--app-border); border-radius: 9px; background: var(--app-chrome); box-shadow: 0 10px 30px rgb(0 0 0 / 18%); color: var(--app-text); }
+  .context-item { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 30px; padding: 6px 10px; border: 0; border-radius: 6px; background: transparent; color: inherit; text-align: left; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .context-item:hover:not(:disabled) { background: var(--app-hover); }
+  .context-item:disabled { color: var(--app-muted); opacity: .48; cursor: default; }
+  .context-item kbd { color: var(--app-muted); font: inherit; font-size: 11px; }
+  .context-separator { height: 1px; margin: 4px 6px; background: var(--app-border); }
+  .context-submenu-wrap { position: relative; }
+  .submenu-arrow { margin-left: auto; color: var(--app-muted); font-size: 17px; line-height: 1; }
+  .context-submenu { display: none; position: absolute; top: -5px; left: calc(100% - 2px); width: 230px; padding: 5px; border: 1px solid var(--app-border); border-radius: 9px; background: var(--app-chrome); box-shadow: 0 10px 30px rgb(0 0 0 / 18%); }
+  .context-submenu-wrap:hover > .context-submenu, .context-submenu-wrap:focus-within > .context-submenu { display: block; }
+
   .md-content {
     color: #1c1c1e;
+  }
+
+  article :global(h1[id]), article :global(h2[id]), article :global(h3[id]),
+  article :global(h4[id]), article :global(h5[id]), article :global(h6[id]) {
+    scroll-margin-top: calc(var(--app-chrome-height, 76px) + 12px);
   }
 
   :global(html.dark) .md-content {

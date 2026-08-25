@@ -1,16 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { document as docStore } from "$lib/stores/document";
+  import { getContentClientHeight, getContentScrollHeight, getContentScrollTop } from "$lib/utils/contentScroll";
 
   let progress = $state(0);
 
   onMount(() => {
     function update() {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      progress = max > 0 ? Math.min((window.scrollY / max) * 100, 100) : 0;
+      const max = getContentScrollHeight() - getContentClientHeight();
+      progress = max > 0 ? Math.min((getContentScrollTop() / max) * 100, 100) : 0;
     }
-    window.addEventListener("scroll", update, { passive: true });
-    return () => window.removeEventListener("scroll", update);
+    window.addEventListener("content-scroll", update);
+    return () => window.removeEventListener("content-scroll", update);
   });
 </script>
 

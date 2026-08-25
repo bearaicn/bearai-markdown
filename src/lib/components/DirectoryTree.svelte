@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { tick, untrack } from "svelte";
+  import { onMount, tick, untrack } from "svelte";
   import { listDirectory, openWorkspaceFile, renameDirectoryEntry, revealInFileExplorer, type DirectoryEntry } from "$lib/tauri/folders";
   import { folderWorkspace } from "$lib/stores/folderWorkspace";
   import { tabStore } from "$lib/stores/tabs";
   import { messages } from "$lib/i18n";
+  import { copyFileName, copyPath } from "$lib/utils/clipboard";
 
   let { root, refreshKey }: { root: string; refreshKey: number } = $props();
   let entriesByPath = $state<Record<string, DirectoryEntry[]>>({});
@@ -19,8 +20,23 @@
   let contextEntry = $state<DirectoryEntry | null>(null);
   let contextPosition = $state({ x: 0, y: 0 });
 
-  async function load(path: string, force = false) {
-    if (!force && entriesByPath[path]) return;
+  onMount(() => {
+    const closeOnPointerDown = (event: PointerEvent) => {
+      if (!(event.target as HTMLElement).closest(".tree-context-menu, .tree-row")) contextEntry = null;
+    };
+    const closeOnOtherContext = (event: MouseEvent) => {
+      if (!(event.target as HTMLElement).closest(".tree-row")) contextEntry = null;
+    };
+    document.addEventListener("pointerdown", closeOnPointerDown);
+    document.addEventListener("contextmenu", closeOnOtherContext);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnPointerDown);
+      document.removeEventListener("contextmenu", closeOnOtherContext);
+    };
+  });
+
+  async function load(path: string, force = false): Promise<boolean> {
+    if (!force && entriesByPath[path]) return entriesByPath[path].length > 0;
     loadingPaths = new Set(loadingPaths).add(path);
     const nextErrors = { ...errors };
     delete nextErrors[path];
@@ -32,8 +48,10 @@
         entry.kind === "folder" && $folderWorkspace.expandedPaths.includes(entry.path)
       );
       await Promise.all(persistedChildren.map((entry) => load(entry.path)));
+      return entries.length > 0;
     } catch (err) {
       errors = { ...errors, [path]: String(err) };
+      return false;
     } finally {
       const next = new Set(loadingPaths);
       next.delete(path);
@@ -47,14 +65,33 @@
       return;
     }
     const expanded = $folderWorkspace.expandedPaths.includes(entry.path);
-    folderWorkspace.setExpanded(entry.path, !expanded);
-    if (!expanded) await load(entry.path);
+    if (expanded) {
+      folderWorkspace.setExpanded(entry.path, false);
+      return;
+    }
+
+    // Resolve children before expanding. Empty folders therefore remain stable
+    // instead of briefly showing an indented loading row and then collapsing.
+    const hasChildren = await load(entry.path);
+    if (hasChildren || errors[entry.path]) folderWorkspace.setExpanded(entry.path, true);
   }
 
   function handleClick(entry: DirectoryEntry) {
     if (renamingPath === entry.path) return;
     if (clickTimer) clearTimeout(clickTimer);
     clickTimer = setTimeout(() => toggle(entry), 220);
+  }
+
+  async function handleDoubleClick(entry: DirectoryEntry) {
+    if (clickTimer) {
+      clearTimeout(clickTimer);
+      clickTimer = undefined;
+    }
+    if (entry.kind === "folder") {
+      await startRename(entry);
+    } else {
+      await openWorkspaceFile(root, entry.path);
+    }
   }
 
   async function startRename(entry: DirectoryEntry) {
@@ -93,14 +130,31 @@
     contextEntry = entry;
     contextPosition = {
       x: Math.min(event.clientX, window.innerWidth - 210),
-      y: Math.min(event.clientY, window.innerHeight - 60),
+      y: Math.min(event.clientY, window.innerHeight - 154),
     };
+  }
+
+  async function renameContextEntry() {
+    const entry = contextEntry;
+    if (entry) await startRename(entry);
   }
 
   async function revealContextEntry() {
     const path = contextEntry?.path;
     contextEntry = null;
     if (path) await revealInFileExplorer(path);
+  }
+
+  async function copyContextPath() {
+    const path = contextEntry?.path;
+    contextEntry = null;
+    if (path) await copyPath(path);
+  }
+
+  async function copyContextName() {
+    const path = contextEntry?.path;
+    contextEntry = null;
+    if (path) await copyFileName(path);
   }
 
   $effect(() => {
@@ -119,21 +173,19 @@
 
 {#snippet nodes(parent: string, depth: number)}
   {#if loadingPaths.has(parent)}
-    <div class="tree-message" style:padding-left={`${12 + depth * 14}px`}>Loading…</div>
+    <div class="tree-message" style:padding-left={`${12 + depth * 14}px`}>{$messages.loading}</div>
   {:else if errors[parent]}
-    <button class="tree-message tree-error" style:padding-left={`${12 + depth * 14}px`} onclick={() => load(parent, true)}>Could not read folder · Retry</button>
-  {:else if entriesByPath[parent]?.length === 0}
-    <div class="tree-message" style:padding-left={`${12 + depth * 14}px`}>No Markdown files</div>
-  {:else}
+    <button class="tree-message tree-error" style:padding-left={`${12 + depth * 14}px`} onclick={() => load(parent, true)}>{$messages.retryFolder}</button>
+  {:else if entriesByPath[parent]?.length}
     {#each entriesByPath[parent] ?? [] as entry (entry.path)}
       {@const expanded = entry.kind === "folder" && $folderWorkspace.expandedPaths.includes(entry.path)}
       <button
         class="tree-row"
         class:selected={$folderWorkspace.selectedPath === entry.path}
-        style:padding-left={`${8 + depth * 14}px`}
+        style:padding-left={`${13 + depth * 14}px`}
         title={entry.path}
         onclick={() => handleClick(entry)}
-        ondblclick={() => startRename(entry)}
+        ondblclick={() => handleDoubleClick(entry)}
         oncontextmenu={(event) => openContextMenu(event, entry)}
       >
         <span class="chevron" class:expanded aria-hidden="true">
@@ -168,20 +220,23 @@
   {/if}
 {/snippet}
 
-<nav class="directory-tree" aria-label="Markdown files">
+<nav class="directory-tree" aria-label={$messages.markdownFiles}>
   {@render nodes(root, 0)}
 </nav>
 
 {#if contextEntry}
-  <div class="context-dismiss" onclick={() => (contextEntry = null)} role="presentation"></div>
   <div class="tree-context-menu" style:left={`${contextPosition.x}px`} style:top={`${contextPosition.y}px`}>
+    <button onclick={renameContextEntry}>{$messages.renameEntry}</button>
+    <div class="tree-context-separator"></div>
     <button onclick={revealContextEntry}>{$messages.revealInFileExplorer}</button>
+    <button onclick={copyContextPath}>{$messages.copyFilePath}</button>
+    <button onclick={copyContextName}>{$messages.copyFileName}</button>
   </div>
 {/if}
 
 <style>
   .directory-tree { flex: 1; overflow: auto; padding: 6px 0 18px; }
-  .tree-row { width: 100%; min-height: 27px; display: flex; align-items: center; gap: 5px; padding-right: 8px; border: 0; background: transparent; color: #3a3a3c; text-align: left; cursor: default; font-size: 12px; }
+  .tree-row { width: 100%; min-height: 28px; display: flex; align-items: center; gap: 5px; padding-right: 8px; border: 0; background: transparent; color: #3a3a3c; text-align: left; cursor: default; font-size: 13px; }
   .tree-row:hover { background: #e9e9ed; }
   .tree-row.selected { background: #d9edf2; color: #075d70; }
   :global(html.dark) .tree-row { color: #d1d1d6; }
@@ -190,15 +245,15 @@
   .chevron { width: 14px; height: 18px; flex: 0 0 14px; display: grid; place-items: center; color: #8e8e93; }
   .chevron svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s ease; transform-origin: center; }
   .chevron.expanded svg { transform: rotate(90deg); }
-  .folder-icon { color: #c58b2a; font-size: 11px; }
-  .file-icon { color: #7b7b82; font-size: 11px; }
+  .folder-icon { color: #c58b2a; font-size: 12px; }
+  .file-icon { color: #7b7b82; font-size: 12px; }
   .entry-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .rename-input { min-width: 0; flex: 1; height: 21px; padding: 0 4px; border: 1px solid #0891b2; border-radius: 3px; outline: none; background: #fff; color: inherit; font: inherit; }
   :global(html.dark) .rename-input { background: #252528; }
-  .context-dismiss { position: fixed; inset: 0; z-index: 49; }
-  .tree-context-menu { position: fixed; z-index: 50; width: 200px; padding: 4px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fff; box-shadow: 0 4px 20px rgb(0 0 0 / 12%); }
-  .tree-context-menu button { width: 100%; padding: 7px 10px; border: 0; border-radius: 5px; background: transparent; color: #1c1c1e; text-align: left; font-size: 12px; cursor: pointer; }
-  .tree-context-menu button:hover { background: #f2f2f7; }
+  .tree-context-menu { position: fixed; z-index: 50; width: 200px; padding: 5px; border: 1px solid var(--app-border); border-radius: 9px; background: var(--app-chrome); box-shadow: 0 10px 30px rgb(0 0 0 / 18%); }
+  .tree-context-menu button { width: 100%; padding: 7px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--app-text); text-align: left; font-size: 12px; cursor: pointer; }
+  .tree-context-menu button:hover { background: var(--app-hover); }
+  .tree-context-separator { height: 1px; margin: 4px 6px; background: var(--app-border); }
   :global(html.dark) .tree-context-menu { border-color: #3a3a3c; background: #2c2c2e; }
   :global(html.dark) .tree-context-menu button { color: #e5e5e7; }
   :global(html.dark) .tree-context-menu button:hover { background: #3a3a3c; }

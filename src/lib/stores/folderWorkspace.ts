@@ -1,6 +1,7 @@
 import { writable } from "svelte/store";
 
 const STORAGE_KEY = "mdhero-folder-workspace-v1";
+const isolatedWindow = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("open-path");
 
 export interface FolderWorkspaceState {
   rootPath: string | null;
@@ -17,6 +18,7 @@ const defaults: FolderWorkspaceState = {
 };
 
 function load(): FolderWorkspaceState {
+  if (isolatedWindow) return defaults;
   if (typeof localStorage === "undefined") return defaults;
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null") as Partial<FolderWorkspaceState> | null;
@@ -28,7 +30,7 @@ function load(): FolderWorkspaceState {
 
 const store = writable<FolderWorkspaceState>(load());
 store.subscribe((state) => {
-  if (typeof localStorage !== "undefined") localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (!isolatedWindow && typeof localStorage !== "undefined") localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 });
 
 export const folderWorkspace = {

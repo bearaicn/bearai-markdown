@@ -1,11 +1,12 @@
 <script lang="ts">
   import { document } from "../stores/document";
   import { settings } from "../stores/settings";
-  import { themeMode, cycleTheme } from "../stores/theme";
+  import { themeMode, themeOptions, setTheme, type ThemeMode } from "../stores/theme";
   import { tocVisible, tocEntries, toggleToc, activeHeadingId } from "../stores/toc";
   import { folderWorkspace } from "../stores/folderWorkspace";
   import { messages, locale, availableLocales, setLocale } from "$lib/i18n";
   import { getCurrentWindow } from "@tauri-apps/api/window";
+  import { onMount } from "svelte";
   import { openFileDialog } from "../tauri/files";
   import { copyAsRichText, copyAsMarkdown } from "../utils/clipboard";
   import ReaderControls from "./ReaderControls.svelte";
@@ -67,14 +68,21 @@
   let showCopyMenu = $state(false);
   let showAppMenu = $state(false);
   let showLanguageMenu = $state(false);
+  let showThemeMenu = $state(false);
   let copyFeedback = $state("");
   let maximized = $state(false);
+  let isMac = $state(false);
+
+  onMount(() => {
+    isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+  });
 
   function closeAll() {
     showReaderControls = false;
     showCopyMenu = false;
     showAppMenu = false;
     showLanguageMenu = false;
+    showThemeMenu = false;
   }
 
   function toggleAppMenu() {
@@ -114,9 +122,10 @@
     showCopyMenu = next;
   }
 
-  function handleThemeToggle() {
+  function toggleThemeMenu() {
+    const next = !showThemeMenu;
     closeAll();
-    themeMode.update((m) => cycleTheme(m));
+    showThemeMenu = next;
   }
 
   function toggleWidthMode() {
@@ -130,7 +139,10 @@
   async function handleExportPdf() {
     try {
       const { getCurrentWebview } = await import("@tauri-apps/api/webview");
-      await getCurrentWebview().print();
+      const webview = getCurrentWebview() as ReturnType<typeof getCurrentWebview> & {
+        print: () => Promise<void>;
+      };
+      await webview.print();
     } catch {
       window.print();
     }
@@ -140,7 +152,7 @@
     const article = globalThis.document?.querySelector("article.prose");
     if (!article || !$document.content) return;
     const success = await copyAsRichText(article.innerHTML, $document.content);
-    copyFeedback = success ? "Copied!" : "Failed";
+    copyFeedback = success ? $messages.copied : $messages.copyFailed;
     showCopyMenu = false;
     setTimeout(() => (copyFeedback = ""), 1500);
   }
@@ -148,18 +160,11 @@
   async function handleCopyMarkdown() {
     if (!$document.content) return;
     const success = await copyAsMarkdown($document.content);
-    copyFeedback = success ? "Copied!" : "Failed";
+    copyFeedback = success ? $messages.copied : $messages.copyFailed;
     showCopyMenu = false;
     setTimeout(() => (copyFeedback = ""), 1500);
   }
 
-  function getThemeIcon(mode: string): string {
-    switch (mode) {
-      case "light": return "\u2600";
-      case "dark": return "\u263E";
-      default: return "\u25D1";
-    }
-  }
 </script>
 
 <header class="toolbar" role="presentation" data-tauri-drag-region ondblclick={(e) => {
@@ -167,6 +172,13 @@
   toggleMaximize();
 }}>
   <div class="toolbar-left">
+    {#if isMac}
+      <div class="mac-window-controls" role="group" aria-label={$messages.windowControls}>
+        <button class="mac-window-btn mac-close" onclick={() => getCurrentWindow().close()} title={$messages.close} aria-label={$messages.close}></button>
+        <button class="mac-window-btn mac-minimize" onclick={() => getCurrentWindow().minimize()} title={$messages.minimize} aria-label={$messages.minimize}></button>
+        <button class="mac-window-btn mac-maximize" onclick={toggleMaximize} title={maximized ? $messages.restore : $messages.maximize} aria-label={maximized ? $messages.restore : $messages.maximize}></button>
+      </div>
+    {/if}
     <img src={brandLogo} alt={$messages.appName} width="26" height="26" class="toolbar-logo" />
     <span class="toolbar-wordmark" data-tauri-drag-region>{$messages.appName}</span>
     <div class="menu-wrap">
@@ -176,25 +188,25 @@
           <button class="dropdown-item" onclick={() => { closeAll(); onNew(); }}><span>{$messages.newDocument}</span><span class="dropdown-hint">Ctrl+N</span></button>
           <button class="dropdown-item" onclick={() => { closeAll(); onOpen(); }}><span>{$messages.open}</span><span class="dropdown-hint">Ctrl+O</span></button>
           <button class="dropdown-item" onclick={() => { closeAll(); onFind(); }}><span>{$messages.find}</span><span class="dropdown-hint">Ctrl+F</span></button>
-          <button class="dropdown-item" disabled={!$document.filePath} onclick={() => { closeAll(); onCloseActive(); }}><span>Close tab</span><span class="dropdown-hint">Ctrl+W</span></button>
+          <button class="dropdown-item" disabled={!$document.filePath} onclick={() => { closeAll(); onCloseActive(); }}><span>{$messages.closeTab}</span><span class="dropdown-hint">Ctrl+W</span></button>
           <div class="dropdown-separator"></div>
           <button class="dropdown-item" onclick={toggleFullscreen}><span>{$messages.fullscreen}</span><span class="dropdown-hint">F11</span></button>
           <button class="dropdown-item" onclick={() => { closeAll(); onOpenSettings(); }}><span>{$messages.settings}</span><span class="dropdown-hint">Ctrl+,</span></button>
           <button class="dropdown-item" onclick={() => { closeAll(); onAbout(); }}><span>{$messages.about}</span></button>
-          <button class="dropdown-item" onclick={() => { closeAll(); onCheckUpdates(); }}><span>Check for updates</span></button>
+          <button class="dropdown-item" onclick={() => { closeAll(); onCheckUpdates(); }}><span>{$messages.checkUpdates}</span></button>
           <div class="dropdown-separator"></div>
           <button class="dropdown-item danger" onclick={() => { closeAll(); onQuit(); }}><span>{$messages.quit}</span><span class="dropdown-hint">Ctrl+Q</span></button>
         </div>
       {/if}
     </div>
     <div class="btn-group">
-      <button onclick={onOpen} class="btn btn-primary" title="Open file (Cmd+O)">
+      <button onclick={onOpen} class="btn btn-primary" title={$messages.openFileHint + ' (Cmd+O)'}>
         {$messages.open}
       </button>
-      <button onclick={onPaste} class="btn btn-ghost" title="Paste markdown (Cmd+Shift+V)">
+      <button onclick={onPaste} class="btn btn-ghost" title={$messages.pasteMarkdownHint + ' (Cmd+Shift+V)'}>
         {$messages.paste}
       </button>
-      <button onclick={onUrl} class="btn btn-ghost" title="Open URL">
+      <button onclick={onUrl} class="btn btn-ghost" title={$messages.openUrl}>
         <svg width="18" height="18" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5.5"/><ellipse cx="7" cy="7" rx="2.5" ry="5.5"/><line x1="1.5" y1="7" x2="12.5" y2="7"/></svg>
       </button>
     </div>
@@ -211,12 +223,12 @@
     <div
       class="mode-segmented"
       role="group"
-      aria-label="View mode"
+      aria-label={$messages.viewMode}
       title={!$document.filePath
-        ? 'View · Split · Edit (open a file first)'
+        ? $messages.viewModeOpenFirst
         : !canEdit
-        ? 'Split and Edit are only available for local files'
-        : 'View · Split · Edit'}
+        ? $messages.viewModeLocalOnly
+        : $messages.viewMode}
     >
       <button
         class="mode-seg"
@@ -242,13 +254,13 @@
   <div class="toolbar-right">
     <button
       onclick={() => folderWorkspace.toggleVisible()}
-      class="btn btn-icon"
+      class="btn btn-icon folder-panel-toggle"
       class:active={Boolean($folderWorkspace.rootPath) && $folderWorkspace.sidebarVisible}
       disabled={!$folderWorkspace.rootPath || isEditing}
       title={!$folderWorkspace.rootPath
-        ? 'Folder explorer (open a folder first)'
+        ? $messages.folderOpenFirst
         : isEditing
-        ? 'Folder explorer (exit edit mode to use)'
+        ? $messages.folderExitEditFirst
         : $folderWorkspace.sidebarVisible
         ? $messages.hideFolder
         : $messages.showFolder}
@@ -383,12 +395,12 @@
       {#if showCopyMenu}
         <div class="dropdown">
           <button onclick={handleCopyRichText} class="dropdown-item">
-            <span>Rich Text</span>
-            <span class="dropdown-hint">for Docs / Notion</span>
+            <span>{$messages.richText}</span>
+            <span class="dropdown-hint">{$messages.richTextHint}</span>
           </button>
           <button onclick={handleCopyMarkdown} class="dropdown-item">
-            <span>Markdown</span>
-            <span class="dropdown-hint">raw source</span>
+            <span>{$messages.markdownSource}</span>
+            <span class="dropdown-hint">{$messages.rawSource}</span>
           </button>
         </div>
       {/if}
@@ -441,19 +453,34 @@
       {/if}
     </div>
 
-    <button onclick={handleThemeToggle} class="btn btn-icon" title={$messages.theme}>
-      {getThemeIcon($themeMode)}
-    </button>
-
-    <div class="window-controls" role="group" aria-label="Window controls">
-      <button class="window-btn" onclick={() => getCurrentWindow().minimize()} title={$messages.minimize} aria-label={$messages.minimize}><span>—</span></button>
-      <button class="window-btn" onclick={toggleMaximize} title={maximized ? $messages.restore : $messages.maximize} aria-label={maximized ? $messages.restore : $messages.maximize}><span class="maximize-glyph">{maximized ? '❐' : '□'}</span></button>
-      <button class="window-btn window-close" onclick={() => getCurrentWindow().close()} title={$messages.close} aria-label={$messages.close}><span>×</span></button>
+    <div class="menu-wrap">
+      <button onclick={toggleThemeMenu} class="btn btn-icon" class:active={showThemeMenu} title={$messages.theme} aria-label={$messages.theme}>
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.35a1.9 1.9 0 0 0 1.35-3.24 1.9 1.9 0 0 1 1.35-3.24H18A3 3 0 0 0 21 11.5 8.5 8.5 0 0 0 12 3Z"/><circle cx="7.5" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="10" cy="6.9" r="1" fill="currentColor" stroke="none"/><circle cx="14" cy="6.8" r="1" fill="currentColor" stroke="none"/><circle cx="17" cy="9.5" r="1" fill="currentColor" stroke="none"/></svg>
+      </button>
+      {#if showThemeMenu}
+        <div class="dropdown theme-dropdown">
+          {#each themeOptions as option}
+            <button class="dropdown-item theme-menu-item" class:active={$themeMode === option.id} onclick={() => { setTheme(option.id as ThemeMode); closeAll(); }}>
+              <span class="theme-menu-swatch" style:background={option.color}></span>
+              <span>{option.id === 'system' ? $messages.followSystem : ($locale === 'zh-CN' ? option.name : option.nameEn)}</span>
+              {#if $themeMode === option.id}<span class="theme-menu-check">✓</span>{/if}
+            </button>
+          {/each}
+        </div>
+      {/if}
     </div>
+
+    {#if !isMac}<div class="window-controls" role="group" aria-label={$messages.windowControls}>
+      <button class="window-btn" onclick={() => getCurrentWindow().minimize()} title={$messages.minimize} aria-label={$messages.minimize}><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 8.5h8"/></svg></button>
+      <button class="window-btn" onclick={toggleMaximize} title={maximized ? $messages.restore : $messages.maximize} aria-label={maximized ? $messages.restore : $messages.maximize}>
+        {#if maximized}<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1.75" y="3.25" width="7" height="7" rx=".4"/><path d="M3.25 3.25V1.75h7v7H9.25"/></svg>{:else}<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1.75" y="1.75" width="8.5" height="8.5" rx=".45"/></svg>{/if}
+      </button>
+      <button class="window-btn window-close" onclick={() => getCurrentWindow().close()} title={$messages.close} aria-label={$messages.close}><svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.25 2.25 7.5 7.5m0-7.5-7.5 7.5"/></svg></button>
+    </div>{/if}
   </div>
 </header>
 
-{#if showCopyMenu || showReaderControls || showAppMenu || showLanguageMenu}
+{#if showCopyMenu || showReaderControls || showAppMenu || showLanguageMenu || showThemeMenu}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="fixed inset-0 z-[9]" onclick={closeAll} onkeydown={() => {}}></div>
 {/if}
@@ -462,14 +489,13 @@
 
 <style>
   .toolbar {
-    position: sticky;
-    top: 0;
+    position: relative;
     z-index: 20;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 6px 12px;
-    background: rgba(250, 250, 250, 0.85);
+    background: var(--app-chrome);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid #e5e5e5;
@@ -477,7 +503,7 @@
   }
 
   :global(html.dark) .toolbar {
-    background: rgba(22, 22, 24, 0.85);
+    background: var(--app-chrome);
     border-bottom-color: #2c2c2e;
   }
 
@@ -514,24 +540,38 @@
     flex-shrink: 0;
   }
 
+  .folder-panel-toggle { margin-left: 12px; position: relative; }
+  .folder-panel-toggle::before { content: ""; position: absolute; left: -7px; top: 6px; bottom: 6px; width: 1px; background: var(--app-border); }
+
+  .mac-window-controls { display: flex; align-items: center; gap: 8px; margin-right: 5px; padding: 0 3px; -webkit-app-region: no-drag; }
+  .mac-window-btn { width: 12px; height: 12px; padding: 0; border: .5px solid rgba(0,0,0,.18); border-radius: 50%; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.28); }
+  .mac-close { background: #ff5f57; }
+  .mac-minimize { background: #febc2e; }
+  .mac-maximize { background: #28c840; }
+
   .menu-wrap { position: relative; }
   .app-menu-btn { padding: 4px 7px; border-radius: 6px; background: transparent; color: #636366; letter-spacing: 1px; }
   .app-menu-btn:hover, .app-menu-btn.active { background: #e5f5f8; color: #0891b2; }
   .app-menu-dropdown { left: 0; right: auto; width: 230px; }
   .language-dropdown { width: 150px; }
+  .theme-dropdown { right: 0; width: 210px; max-height: min(430px, calc(100vh - 54px)); overflow-y: auto; }
+  .theme-menu-item { justify-content: flex-start; gap: 9px; }
+  .theme-menu-item > span:nth-child(2) { flex: 1; min-width: 0; }
+  .theme-menu-swatch { width: 20px; height: 20px; border: 1px solid rgba(0,0,0,.14); border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.24); }
+  .theme-menu-check { color: var(--app-accent); font-weight: 700; text-align: center; }
   .dropdown-separator { height: 1px; margin: 4px 6px; background: #e5e5ea; }
   :global(html.dark) .dropdown-separator { background: #3a3a3c; }
   .dropdown-item.danger { color: #c62828; }
   .dropdown-item.active { color: #0891b2; font-weight: 600; }
 
   .window-controls { display: flex; align-self: stretch; margin: -6px -12px -6px 6px; }
-  .window-btn { width: 46px; min-height: 39px; border: 0; background: transparent; color: #3a3a3c; font-size: 18px; display: grid; place-items: center; }
+  .window-btn { width: 46px; min-height: 39px; border: 0; background: transparent; color: #3a3a3c; display: grid; place-items: center; }
+  .window-btn svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1; shape-rendering: geometricPrecision; }
   .window-btn:hover { background: rgba(0,0,0,.08); }
   .window-close:hover { background: #c42b1c; color: white; }
   :global(html.dark) .window-btn { color: #e5e5e7; }
   :global(html.dark) .window-btn:hover { background: rgba(255,255,255,.1); }
   :global(html.dark) .window-close:hover { background: #c42b1c; color: white; }
-  .maximize-glyph { font-size: 16px; line-height: 1; }
 
   /* Centered mode switcher: absolutely centered in the toolbar so it stays put
      regardless of the left/right group widths. Anchors to .toolbar (sticky). */

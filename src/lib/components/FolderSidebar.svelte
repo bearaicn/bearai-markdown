@@ -1,6 +1,7 @@
 <script lang="ts">
   import { openFolder, openWorkspaceFile, searchWorkspaceMarkdown, type WorkspaceSearchResult } from "$lib/tauri/folders";
   import { folderWorkspace } from "$lib/stores/folderWorkspace";
+  import { panelLayout } from "$lib/stores/panelLayout";
   import DirectoryTree from "./DirectoryTree.svelte";
   import { messages } from "$lib/i18n";
 
@@ -62,10 +63,23 @@
       error = String(err);
     }
   }
+
+  function startResize(event: PointerEvent) {
+    event.preventDefault();
+    const move = (next: PointerEvent) => panelLayout.setFolderWidth(next.clientX);
+    const stop = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", stop);
+      document.body.classList.remove("resizing-panel");
+    };
+    document.body.classList.add("resizing-panel");
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop, { once: true });
+  }
 </script>
 
 {#if $folderWorkspace.rootPath && $folderWorkspace.sidebarVisible}
-  <aside class="folder-sidebar" aria-label="Folder explorer">
+  <aside class="folder-sidebar" aria-label={$messages.folderExplorer}>
     <header class="folder-header">
       <div class="folder-heading">
         <span class="folder-title" title={$folderWorkspace.rootPath}>{$folderWorkspace.rootPath.replace(/\\/g, "/").split("/").pop()}</span>
@@ -111,6 +125,7 @@
     {:else}
       <DirectoryTree root={$folderWorkspace.rootPath} {refreshKey} />
     {/if}
+    <div class="resize-handle" role="separator" aria-orientation="vertical" aria-label={$messages.folderPanelResize} onpointerdown={startResize}></div>
   </aside>
 {/if}
 
@@ -120,27 +135,32 @@
     top: var(--app-chrome-height, 76px);
     bottom: 0;
     left: 0;
-    width: 280px;
+    width: var(--folder-sidebar-width, 280px);
     z-index: 10;
     display: flex;
     flex-direction: column;
-    background: #f5f5f7;
-    border-right: 1px solid #d9d9de;
+    background: var(--app-chrome);
+    border-right: 1px solid var(--app-border);
+    color: var(--app-text);
     box-shadow: 2px 0 8px rgb(0 0 0 / 4%);
   }
-  :global(html.dark) .folder-sidebar { background: #1c1c1e; border-right-color: #343438; }
+  .resize-handle { position: absolute; top: 0; right: -3px; bottom: 0; width: 7px; cursor: col-resize; touch-action: none; }
+  .resize-handle::after { content: ""; position: absolute; top: 0; right: 3px; bottom: 0; width: 1px; background: transparent; transition: background .15s; }
+  .resize-handle:hover::after { background: var(--app-accent); }
+  :global(body.resizing-panel) { cursor: col-resize !important; user-select: none !important; }
+  :global(html.dark) .folder-sidebar { background: var(--app-chrome); border-right-color: var(--app-border); }
   .folder-header { display: flex; align-items: center; gap: 3px; min-height: 48px; padding: 6px 7px 6px 12px; border-bottom: 1px solid #dedee3; }
   :global(html.dark) .folder-header { border-bottom-color: #343438; }
   .folder-heading { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
-  .folder-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 650; color: #2c2c2e; }
+  .folder-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 650; color: #2c2c2e; }
   :global(html.dark) .folder-title { color: #e5e5e7; }
-  .folder-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 9px; color: #8e8e93; }
+  .folder-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; color: #8e8e93; }
   .icon-btn { width: 25px; height: 25px; border: 0; border-radius: 5px; background: transparent; color: #636366; cursor: pointer; font-size: 16px; line-height: 1; }
   .icon-btn:hover { background: #e5e5ea; color: #1c1c1e; }
   :global(html.dark) .icon-btn:hover { background: #2c2c2e; color: #f2f2f7; }
   .sidebar-error { padding: 8px 12px; color: #c62828; font-size: 11px; border-bottom: 1px solid #f0caca; }
   .folder-search { position: relative; flex: 0 0 auto; margin: 7px 8px 5px; }
-  .folder-search input { box-sizing: border-box; width: 100%; height: 30px; padding: 0 29px 0 28px; border: 1px solid #d5d5da; border-radius: 6px; outline: none; background: #fff; color: #2c2c2e; font: inherit; font-size: 11px; }
+  .folder-search input { box-sizing: border-box; width: 100%; height: 31px; padding: 0 29px 0 28px; border: 1px solid #d5d5da; border-radius: 6px; outline: none; background: #fff; color: #2c2c2e; font: inherit; font-size: 12px; }
   .folder-search input:focus { border-color: #0891b2; box-shadow: 0 0 0 2px rgb(8 145 178 / 12%); }
   .folder-search input::placeholder { color: #9b9ba1; }
   .search-icon { position: absolute; left: 9px; top: 8px; width: 14px; height: 14px; fill: none; stroke: #8e8e93; stroke-width: 1.5; stroke-linecap: round; pointer-events: none; }
@@ -150,8 +170,8 @@
   .result-count { padding: 4px 12px 5px; color: #8e8e93; font-size: 10px; }
   .search-result { display: flex; width: 100%; flex-direction: column; gap: 2px; padding: 7px 11px; border: 0; background: transparent; text-align: left; cursor: pointer; }
   .search-result:hover { background: #e9e9ed; }
-  .result-path { width: 100%; overflow: hidden; color: #2c2c2e; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-  .result-preview { width: 100%; overflow: hidden; color: #707077; font-size: 10px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+  .result-path { width: 100%; overflow: hidden; color: #2c2c2e; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+  .result-preview { width: 100%; overflow: hidden; color: #707077; font-size: 11px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
   .result-line { display: inline-block; min-width: 20px; margin-right: 5px; color: #0891b2; font-variant-numeric: tabular-nums; }
   .search-message { padding: 14px 12px; color: #8e8e93; font-size: 11px; text-align: center; }
   .search-error { color: #c62828; }
@@ -159,5 +179,5 @@
   :global(html.dark) .clear-search:hover, :global(html.dark) .search-result:hover { background: #29292d; }
   :global(html.dark) .result-path { color: #e5e5e7; }
   :global(html.dark) .result-preview { color: #a8a8ae; }
-  @media (max-width: 720px) { .folder-sidebar { width: min(280px, 82vw); box-shadow: 4px 0 18px rgb(0 0 0 / 18%); } }
+  @media (max-width: 720px) { .folder-sidebar { width: min(var(--folder-sidebar-width, 280px), 82vw); box-shadow: 4px 0 18px rgb(0 0 0 / 18%); } }
 </style>

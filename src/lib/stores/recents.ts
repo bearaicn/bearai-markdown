@@ -109,9 +109,31 @@ export const recentFolders = derived(recentItems, ($items) =>
     .sort((a, b) => Number(Boolean(b.favorite)) - Number(Boolean(a.favorite)) || b.openedAt - a.openedAt)
 );
 
+if (typeof window !== "undefined") {
+  queueMicrotask(() => {
+    const items = get(recentItems);
+    void import("@tauri-apps/api/core").then(({ invoke }) =>
+      invoke("update_native_recents", {
+        items: items
+          .filter((item) => item.path && !/^(paste|new|url):\/\//i.test(item.path))
+          .map(({ kind, path, name }) => ({ kind, path, name })),
+      }).catch(() => {})
+    );
+  });
+}
+
 function replace(items: RecentItem[]) {
   const trimmed = trimItems(items);
   save(trimmed);
+  if (typeof window !== "undefined") {
+    void import("@tauri-apps/api/core").then(({ invoke }) =>
+      invoke("update_native_recents", {
+        items: trimmed
+          .filter((item) => item.path && !/^(paste|new|url):\/\//i.test(item.path))
+          .map(({ kind, path, name }) => ({ kind, path, name })),
+      }).catch(() => {})
+    );
+  }
   return trimmed;
 }
 

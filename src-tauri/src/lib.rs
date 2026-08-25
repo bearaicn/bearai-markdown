@@ -1,9 +1,15 @@
 mod commands;
 pub mod menu;
 mod watcher;
+mod native_recents;
+#[cfg(target_os = "windows")]
+mod jump_list;
 
 use std::sync::Mutex;
 use tauri::Manager;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static WINDOW_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 /// Stores file paths received from OS "Open With" events.
 /// These arrive before the webview is ready, so we buffer them.
@@ -25,6 +31,99 @@ fn get_opened_files(state: tauri::State<'_, OpenedFiles>) -> Vec<String> {
     let result = paths.clone();
     paths.clear();
     result
+}
+
+#[derive(serde::Serialize)]
+struct StartupItem {
+    kind: String,
+    path: String,
+}
+
+#[tauri::command]
+fn get_startup_item() -> Option<StartupItem> {
+    let args: Vec<String> = std::env::args().collect();
+    let kind = args.windows(2).find(|pair| pair[0] == "--jump-kind").map(|pair| pair[1].clone())?;
+    let path = args.windows(2).find(|pair| pair[0] == "--jump-path").map(|pair| pair[1].clone())?;
+    Some(StartupItem { kind, path })
+}
+
+#[tauri::command]
+async fn update_native_recents(
+    _app: tauri::AppHandle,
+    items: Vec<native_recents::NativeRecentItem>,
+) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    let result = {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        _app.run_on_main_thread(move || {
+            let _ = sender.send(native_recents::update(items));
+        })
+        .map_err(|error| error.to_string())?;
+        tauri::async_runtime::spawn_blocking(move || receiver.recv())
+            .await
+            .map_err(|error| error.to_string())?
+            .map_err(|error| error.to_string())?
+    };
+
+    #[cfg(not(target_os = "macos"))]
+    let result = tauri::async_runtime::spawn_blocking(move || native_recents::update(items))
+        .await
+        .map_err(|error| error.to_string())?;
+
+    if let Err(error) = &result {
+        eprintln!("failed to update native recent items: {error}");
+    }
+    result
+}
+
+#[tauri::command]
+async fn open_path_in_new_window(app: tauri::AppHandle, kind: String, path: String) -> Result<(), String> {
+    let item = std::path::Path::new(&path);
+    if !item.is_absolute() || !item.exists() {
+        return Err("The selected path does not exist or is not absolute".into());
+    }
+    match kind.as_str() {
+        "folder" if item.is_dir() => {}
+        "file" if item.is_file() => {
+            let allowed = item.extension().and_then(|value| value.to_str())
+                .map(|value| matches!(value.to_ascii_lowercase().as_str(), "md" | "markdown" | "mdown" | "mkd" | "txt"))
+                .unwrap_or(false);
+            if !allowed { return Err("The selected file is not a supported Markdown document".into()); }
+        }
+        _ => return Err("The selected path does not match its requested type".into()),
+    }
+
+    let label = format!("workspace-{}", WINDOW_COUNTER.fetch_add(1, Ordering::Relaxed));
+    let query = format!(
+        "/?open-kind={}&open-path={}",
+        kind,
+        urlencoding::encode(&path)
+    );
+    let builder = tauri::WebviewWindowBuilder::new(
+        &app,
+        label,
+        tauri::WebviewUrl::App(query.into()),
+    )
+    .title("熊智 Markdown")
+    .inner_size(900.0, 700.0)
+    .min_inner_size(400.0, 300.0)
+    .shadow(true);
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder.decorations(false);
+    let window = builder.build().map_err(|error| error.to_string())?;
+    let quit_window = window.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            api.prevent_close();
+            let _ = quit_window.eval("window.__mdhero_close_child?.()");
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+fn destroy_current_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.destroy().map_err(|error| error.to_string())
 }
 
 /// Parse a `bearai-markdown://open?path=<url-encoded-abs-path>` deep link into an
@@ -67,8 +166,22 @@ fn parse_bearai_markdown_url(url: &tauri::Url) -> Option<String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let window_state_flags = tauri_plugin_window_state::StateFlags::SIZE
+        | tauri_plugin_window_state::StateFlags::POSITION
+        | tauri_plugin_window_state::StateFlags::MAXIMIZED
+        | tauri_plugin_window_state::StateFlags::DECORATIONS
+        | tauri_plugin_window_state::StateFlags::FULLSCREEN;
+
     tauri::Builder::default()
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        // Visibility is intentionally excluded: the main window starts hidden
+        // and the frontend reveals it only after session restoration has
+        // painted the final frame. Restoring VISIBLE here causes a white/loading
+        // window to appear before Svelte is ready.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(window_state_flags)
+                .build(),
+        )
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
@@ -92,8 +205,15 @@ pub fn run() {
             watcher::start_watching,
             watcher::stop_watching,
             get_opened_files,
+            get_startup_item,
+            update_native_recents,
+            open_path_in_new_window,
+            destroy_current_window,
         ])
         .setup(|app| {
+            #[cfg(target_os = "windows")]
+            jump_list::set_process_app_id()?;
+
             // Windows/Linux use the custom in-webview title bar and application
             // menu. macOS keeps its native app/window menus for platform-level
             // services, window tiling and standard keyboard conventions.
@@ -164,9 +284,9 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|_app_handle, event| {
+        .run(|_app_handle, _event| {
             #[cfg(target_os = "macos")]
-            if let tauri::RunEvent::Opened { urls } = event {
+            if let tauri::RunEvent::Opened { urls } = _event {
                 let app_handle = _app_handle;
                 let mut file_paths: Vec<String> = Vec::new();
 

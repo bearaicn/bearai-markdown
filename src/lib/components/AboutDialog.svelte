@@ -34,7 +34,7 @@
     <div class="dialog">
       <div class="dialog-header">
         <h2 class="dialog-title">{$messages.about}</h2>
-        <button onclick={() => (visible = false)} class="dialog-close" aria-label="Close">
+        <button onclick={() => (visible = false)} class="dialog-close" aria-label={$messages.closeDialog}>
           <X size={16} />
         </button>
       </div>
@@ -44,7 +44,7 @@
           <img src={appIcon} class="app-icon" alt={$messages.appName} width="48" height="48" />
           <h3 class="app-name">{$messages.appName}</h3>
           <p class="app-version">Version {appVersion}</p>
-          <p class="app-description">A local Markdown reader, editor, and folder browser.</p>
+          <p class="app-description">{$messages.aboutDescription}</p>
           <a
             class="app-link"
             href="https://github.com/bearaicn/bearai-markdown"
@@ -53,7 +53,7 @@
           >
             github.com/bearaicn/bearai-markdown
           </a>
-          <a class="app-link upstream-link" href="https://github.com/vaibhavuk-dev/mdhero" target="_blank" rel="noopener noreferrer">Based on MDHero by Vaibhav Kakde (MIT)</a>
+          <a class="app-link upstream-link" href="https://github.com/vaibhavuk-dev/mdhero" target="_blank" rel="noopener noreferrer">{$messages.basedOnMdhero}</a>
         </div>
       </div>
     </div>

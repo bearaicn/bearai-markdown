@@ -1,4 +1,5 @@
 import { writable, get } from "svelte/store";
+import { getContentScrollTop } from "../utils/contentScroll";
 
 export interface Tab {
   id: string;
@@ -96,7 +97,7 @@ function createTabStore() {
   function saveScrollPosition() {
     const currentId = get(activeTabId);
     if (currentId) {
-      const scrollTop = window.scrollY;
+      const scrollTop = getContentScrollTop();
       tabs.update((ts) =>
         ts.map((t) => (t.id === currentId ? { ...t, scrollTop } : t))
       );

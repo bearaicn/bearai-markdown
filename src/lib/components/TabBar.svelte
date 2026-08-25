@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tabStore, HOME_TAB_ID, type Tab } from "$lib/stores/tabs";
   import { newDocument } from "$lib/tauri/files";
-  import { copyPath } from "$lib/utils/clipboard";
+  import { copyFileName, copyPath } from "$lib/utils/clipboard";
   import { revealInFileExplorer } from "$lib/tauri/folders";
   import { messages } from "$lib/i18n";
   import { onMount } from "svelte";
@@ -34,7 +34,22 @@
     const observer = new ResizeObserver(updateOverflow);
     if (filesElement) observer.observe(filesElement);
     updateOverflow();
-    return () => observer.disconnect();
+    const closeOnPointerDown = (event: PointerEvent) => {
+      if (!(event.target as HTMLElement).closest(".dropdown, .tab, .more-tabs-btn")) {
+        closeContextMenu();
+        overflowMenuOpen = false;
+      }
+    };
+    const closeOnOtherContext = (event: MouseEvent) => {
+      if (!(event.target as HTMLElement).closest(".tab")) closeContextMenu();
+    };
+    document.addEventListener("pointerdown", closeOnPointerDown);
+    document.addEventListener("contextmenu", closeOnOtherContext);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("pointerdown", closeOnPointerDown);
+      document.removeEventListener("contextmenu", closeOnOtherContext);
+    };
   });
 
   $effect(() => {
@@ -169,6 +184,13 @@
     setTimeout(closeContextMenu, 900);
   }
 
+  async function handleCopyFileName() {
+    if (!contextMenuTab) return;
+    const success = await copyFileName(contextMenuTab.filePath);
+    copyFeedback = success ? $messages.copied : $messages.copyFailed;
+    setTimeout(closeContextMenu, 900);
+  }
+
   async function handleRevealInExplorer() {
     const path = contextMenuTab?.filePath;
     closeContextMenu();
@@ -206,7 +228,7 @@
           class:drag-over={overIndex === idx && dragIndex !== idx && dragIndex >= 0}
         >
           <span class="tab-label">
-            {#if tab.dirty}<span class="tab-dirty" title="Unsaved changes">•</span>{/if}{tab.fileName}
+            {#if tab.dirty}<span class="tab-dirty" title={$messages.unsavedChanges}>•</span>{/if}{tab.fileName}
           </span>
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <span
@@ -239,8 +261,6 @@
 </div>
 
 {#if contextMenuTab}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-[9]" onclick={closeContextMenu} onkeydown={() => {}}></div>
   <div class="dropdown" style="left: {contextMenuPos.x}px; top: {contextMenuPos.y}px;">
     <button onclick={closeCurrentFromMenu} class="dropdown-item"><span>{$messages.closeCurrentTab}</span></button>
     <button onclick={closeOtherFromMenu} class="dropdown-item" disabled={$tabs.length <= 1}><span>{$messages.closeOtherTabs}</span></button>
@@ -248,14 +268,13 @@
     {#if isFileTab(contextMenuTab)}
       <div class="dropdown-separator"></div>
       <button onclick={handleRevealInExplorer} class="dropdown-item"><span>{$messages.revealInFileExplorer}</span></button>
-      <button onclick={handleCopyPath} class="dropdown-item"><span>{copyFeedback || $messages.copyPath}</span></button>
+      <button onclick={handleCopyPath} class="dropdown-item"><span>{copyFeedback || $messages.copyFilePath}</span></button>
+      <button onclick={handleCopyFileName} class="dropdown-item"><span>{$messages.copyFileName}</span></button>
     {/if}
   </div>
 {/if}
 
 {#if overflowMenuOpen}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 z-[9]" onclick={() => (overflowMenuOpen = false)} onkeydown={() => {}}></div>
   <div class="dropdown overflow-dropdown" style="left: {overflowMenuPos.x}px; top: {overflowMenuPos.y}px;">
     {#each $tabs as tab (tab.id)}
       <button class="dropdown-item overflow-item" class:current={$activeTabId === tab.id} onclick={() => selectOverflowTab(tab.id)} title={tab.filePath}>
@@ -268,16 +287,15 @@
 
 <style>
   .tabbar {
-    position: sticky;
-    top: var(--toolbar-height, 39px);
+    position: relative;
     z-index: 15;
-    background: #dee1e6;
+    background: var(--app-tabbar);
     padding: 6px 8px 0;
     overflow: hidden;
   }
 
   :global(html.dark) .tabbar {
-    background: #111113;
+    background: var(--app-tabbar);
   }
 
   .tabbar::-webkit-scrollbar {
@@ -336,16 +354,16 @@
   }
 
   .tab.active {
-    background: #fafafa;
-    color: #1c1c1e;
+    background: var(--app-bg);
+    color: var(--app-text);
     font-weight: 600;
     box-shadow: 0 -1px 3px rgba(0,0,0,0.06);
     border-bottom: 2px solid #0891B2;
   }
 
   :global(html.dark) .tab.active {
-    background: #1e1e20;
-    color: #e5e5e7;
+    background: var(--app-bg);
+    color: var(--app-text);
     font-weight: 600;
     box-shadow: 0 -1px 3px rgba(0,0,0,0.2);
     border-bottom: 2px solid #22D3EE;
@@ -424,9 +442,9 @@
     align-items: center;
     justify-content: center;
     width: 28px;
-    height: 28px;
+    height: 38px;
     margin-left: 2px;
-    margin-bottom: 2px;
+    margin-bottom: 0;
     background: none;
     border: none;
     border-radius: 6px;
@@ -436,7 +454,7 @@
     transition: background 0.12s, color 0.12s;
   }
 
-  .more-tabs-btn { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; margin: 0 0 2px 2px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #717177; cursor: pointer; }
+  .more-tabs-btn { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 38px; margin: 0 0 0 2px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #717177; cursor: pointer; }
   .more-tabs-btn:hover, .more-tabs-btn.active { background: rgba(255,255,255,.58); color: #0891b2; }
   .more-tabs-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   :global(html.dark) .more-tabs-btn:hover, :global(html.dark) .more-tabs-btn.active { background: rgba(255,255,255,.08); color: #22d3ee; }
@@ -454,10 +472,10 @@
   .dropdown {
     position: fixed;
     width: 160px;
-    background: white;
-    border: 1px solid #e5e5e5;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06);
+    background: var(--app-chrome);
+    border: 1px solid var(--app-border);
+    border-radius: 9px;
+    box-shadow: 0 10px 30px rgb(0 0 0 / 18%);
     z-index: 50;
     padding: 4px;
     overflow: hidden;
@@ -475,7 +493,7 @@
     width: 100%;
     padding: 7px 10px;
     font-size: 12px;
-    color: #1c1c1e;
+    color: var(--app-text);
     background: none;
     border: none;
     border-radius: 5px;
@@ -488,11 +506,11 @@
   }
 
   .dropdown-item:hover {
-    background: #f2f2f7;
+    background: var(--app-hover);
   }
   .dropdown-item:disabled { opacity: .42; cursor: default; }
   .dropdown-item:disabled:hover { background: transparent; }
-  .dropdown-separator { height: 1px; margin: 4px 6px; background: #e5e5e5; }
+  .dropdown-separator { height: 1px; margin: 4px 6px; background: var(--app-border); }
   :global(html.dark) .dropdown-separator { background: #444448; }
   .overflow-dropdown { width: 260px; max-height: min(420px, calc(100vh - 100px)); overflow-y: auto; }
   .overflow-item { gap: 7px; }

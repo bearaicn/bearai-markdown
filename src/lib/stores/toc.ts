@@ -8,7 +8,24 @@ export interface TocEntry {
 
 export const tocEntries = writable<TocEntry[]>([]);
 export const activeHeadingId = writable<string | null>(null);
-export const tocVisible = writable(false);
+export const TOC_VISIBLE_KEY = "bearai-toc-visible-v1";
+
+export function deserializeTocVisible(value: string | null): boolean {
+  return value === "true";
+}
+
+export function serializeTocVisible(visible: boolean): string {
+  return String(visible);
+}
+
+function loadTocVisible(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  return deserializeTocVisible(localStorage.getItem(TOC_VISIBLE_KEY));
+}
+export const tocVisible = writable(loadTocVisible());
+tocVisible.subscribe((visible) => {
+  if (typeof localStorage !== "undefined") localStorage.setItem(TOC_VISIBLE_KEY, serializeTocVisible(visible));
+});
 
 // When true, the IntersectionObserver won't update activeHeadingId
 let observerPaused = false;

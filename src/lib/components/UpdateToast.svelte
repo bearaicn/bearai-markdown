@@ -2,6 +2,7 @@
   import { updateAvailable, updateDismissed, dismissUpdate } from "$lib/stores/updater";
   import { installUpdate, updateInstalling, updateProgress, updateError } from "$lib/stores/autoUpdate";
   import { tabStore, HOME_TAB_ID } from "$lib/stores/tabs";
+  import { messages } from "$lib/i18n";
 
   const { activeTabId } = tabStore;
 
@@ -39,11 +40,11 @@
       {#if $updateInstalling}
         <!-- buttons hidden while installing; progress shows in the text -->
       {:else if $updateError}
-        <button class="update-btn download" onclick={openRelease}>Download manually</button>
-        <button class="update-btn dismiss" onclick={dismissUpdate}>Later</button>
+        <button class="update-btn download" onclick={openRelease}>{$messages.downloadManually}</button>
+        <button class="update-btn dismiss" onclick={dismissUpdate}>{$messages.later}</button>
       {:else}
-        <button class="update-btn download" onclick={installUpdate}>Update now</button>
-        <button class="update-btn dismiss" onclick={dismissUpdate}>Later</button>
+        <button class="update-btn download" onclick={installUpdate}>{$messages.updateNow}</button>
+        <button class="update-btn dismiss" onclick={dismissUpdate}>{$messages.later}</button>
       {/if}
     </div>
   </div>

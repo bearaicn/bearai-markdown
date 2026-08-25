@@ -1,5 +1,6 @@
 <script lang="ts">
   import { settings } from "$lib/stores/settings";
+  import { messages } from "$lib/i18n";
 
   let { visible = false }: { visible: boolean } = $props();
 </script>
@@ -7,10 +8,10 @@
 {#if visible}
   <div class="rc-panel">
     <div class="rc-arrow"></div>
-    <h3 class="rc-title">Reading Preferences</h3>
+    <h3 class="rc-title">{$messages.readingPreferences}</h3>
 
     <div class="rc-group">
-      <span class="rc-label">Font</span>
+      <span class="rc-label">{$messages.font}</span>
       <div class="rc-segmented">
         {#each ["sans", "serif", "mono"] as font}
           <button
@@ -26,7 +27,7 @@
 
     <div class="rc-group">
       <div class="rc-label-row">
-        <span class="rc-label">Text size</span>
+        <span class="rc-label">{$messages.textSize}</span>
         <span class="rc-value">{$settings.fontSize}px</span>
       </div>
       <input
@@ -42,7 +43,7 @@
 
     <div class="rc-group">
       <div class="rc-label-row">
-        <span class="rc-label">Line spacing</span>
+        <span class="rc-label">{$messages.lineSpacing}</span>
         <span class="rc-value">{$settings.lineHeight.toFixed(1)}</span>
       </div>
       <input
@@ -57,7 +58,7 @@
     </div>
 
     <div class="rc-group">
-      <span class="rc-label">Width mode</span>
+      <span class="rc-label">{$messages.widthMode}</span>
       <div class="rc-segmented">
         <button
           onclick={() => settings.update((s) => ({ ...s, widthMode: "comfortable" }))}
@@ -78,7 +79,7 @@
 
     <div class="rc-group" class:disabled={$settings.widthMode === "wide"} style="margin-bottom: 0;">
       <div class="rc-label-row">
-        <span class="rc-label">Content width</span>
+        <span class="rc-label">{$messages.contentWidth}</span>
         <span class="rc-value">{$settings.widthMode === "wide" ? "Wide" : `${$settings.maxWidth}px`}</span>
       </div>
       <input

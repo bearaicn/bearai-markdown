@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { folderWorkspace } from "$lib/stores/folderWorkspace";
 import { addRecentFolder, setFolderLastFile } from "$lib/stores/recents";
 import { openFile } from "./files";
+import { openPathInNewWindow, requestOpenDestination } from "$lib/stores/openDestination";
 
 export interface DirectoryEntry {
   name: string;
@@ -41,15 +42,35 @@ export async function revealInFileExplorer(path: string): Promise<void> {
   await revealItemInDir(path);
 }
 
+export async function openFolderInCurrentWindow(path: string): Promise<boolean> {
+  // Validate access before changing persisted workspace/history state.
+  await listDirectory(path, path);
+  folderWorkspace.open(path);
+  addRecentFolder(path, folderName(path));
+  return true;
+}
+
 export async function openFolder(path?: string): Promise<boolean> {
   const selected = path ?? await open({ directory: true, multiple: false });
   if (!selected || typeof selected !== "string") return false;
 
-  // Validate access before changing persisted workspace/history state.
-  await listDirectory(selected, selected);
-  folderWorkspace.open(selected);
-  addRecentFolder(selected, folderName(selected));
-  return true;
+  const destination = await requestOpenDestination("folder", selected);
+  if (destination === "cancel") return false;
+  if (destination === "new-window") {
+    try {
+      await openPathInNewWindow("folder", selected);
+      // Record immediately in the initiating window. The child window also
+      // records on load, but relying on that asynchronous startup alone can
+      // leave workspace state and native recent folders out of sync.
+      addRecentFolder(selected, folderName(selected));
+      return true;
+    } catch (error) {
+      console.error("Failed to open folder in a new window:", error);
+      alert(`Failed to open a new window: ${error}`);
+      return false;
+    }
+  }
+  return openFolderInCurrentWindow(selected);
 }
 
 export async function openWorkspaceFile(root: string, path: string): Promise<void> {

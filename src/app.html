@@ -5,6 +5,26 @@
     <link rel="icon" href="%sveltekit.assets%/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>熊智 Markdown</title>
+    <script>
+      // Apply the persisted theme before the first paint. Applying it from
+      // Svelte's onMount is too late and produces a visible default-theme flash.
+      (() => {
+        try {
+          const validThemes = new Set(["system", "mist", "sage", "ocean", "rose", "graphite", "forest", "coast"]);
+          const savedTheme = localStorage.getItem("bearai-theme-v2");
+          const selectedTheme = savedTheme && validThemes.has(savedTheme) ? savedTheme : "system";
+          const effectiveTheme = selectedTheme === "system"
+            ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "graphite" : "mist")
+            : selectedTheme;
+          const root = document.documentElement;
+          root.dataset.theme = effectiveTheme;
+          root.dataset.themeMode = selectedTheme;
+          root.classList.toggle("dark", effectiveTheme === "graphite");
+        } catch {
+          // Keep the CSS defaults when storage or matchMedia is unavailable.
+        }
+      })();
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">

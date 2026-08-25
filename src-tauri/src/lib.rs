@@ -237,6 +237,17 @@ pub fn run() {
             if let Some(main_window) = app.get_webview_window("main") {
                 #[cfg(not(target_os = "macos"))]
                 main_window.set_decorations(false)?;
+
+                // The frontend reveals the hidden window as soon as the active
+                // document (or empty home state) is ready. Keep a native safety
+                // net so a renderer exception can never leave the process
+                // permanently running with an invisible window.
+                let startup_window = main_window.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(5));
+                    let _ = startup_window.show();
+                });
+
                 let quit_win = main_window.clone();
                 main_window.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {

@@ -1,4 +1,5 @@
-import { writable } from "svelte/store";
+import { get, writable } from "svelte/store";
+import { workspaceAncestorDirectories } from "../utils/workspacePath";
 
 const STORAGE_KEY = "mdhero-folder-workspace-v1";
 const isolatedWindow = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("open-path");
@@ -51,15 +52,26 @@ export const folderWorkspace = {
     store.update((state) => ({ ...state, sidebarVisible: !state.sidebarVisible }));
   },
   setExpanded(path: string, expanded: boolean) {
-    store.update((state) => ({
+    const state = get(store);
+    const alreadyExpanded = state.expandedPaths.includes(path);
+    if (alreadyExpanded === expanded) return;
+    store.set({
       ...state,
       expandedPaths: expanded
-        ? Array.from(new Set([...state.expandedPaths, path]))
+        ? [...state.expandedPaths, path]
         : state.expandedPaths.filter((item) => item !== path),
-    }));
+    });
   },
   select(path: string | null) {
-    store.update((state) => ({ ...state, selectedPath: path }));
+    const state = get(store);
+    if (state.selectedPath !== path) store.set({ ...state, selectedPath: path });
+  },
+  syncActiveFile(path: string | null) {
+    if (!path || /^(?:new|paste|url):\/\//i.test(path)) return;
+    const state = get(store);
+    if (!state.rootPath || state.selectedPath === path) return;
+    if (workspaceAncestorDirectories(state.rootPath, path) === null) return;
+    store.set({ ...state, selectedPath: path });
   },
   renamePaths(oldPath: string, newPath: string) {
     const oldNormalized = oldPath.replace(/\//g, "\\").replace(/\\+$/, "");

@@ -55,8 +55,10 @@
   import { get } from "svelte/store";
   import { getCurrentSourceLine, scrollToSourceLine, type ViewMode } from "$lib/utils/scroll-sync";
   import { saveProgress, getProgress } from "$lib/stores/readingProgress";
-  import { clearDocumentSession, loadDocumentSession, saveDocumentSession } from "$lib/stores/documentSession";
+  import { clearDocumentSession, loadDocumentSession, orderSessionPaths, saveDocumentSession } from "$lib/stores/documentSession";
+  import { waitForCommittedPaint } from "$lib/utils/startupPaint";
   import { panelLayout } from "$lib/stores/panelLayout";
+  import { focusDocumentSearchPanel } from "$lib/utils/documentSearchFocus";
 
   let rendererReady = $state(false);
   let lastWatchedPath: string | null = null;
@@ -99,6 +101,23 @@
   let isRestoring = false;
   let restoreTimer: ReturnType<typeof setTimeout> | undefined;
   let scrollSaveTimer: ReturnType<typeof setTimeout> | undefined;
+
+  async function focusTocDocumentSearch() {
+    if (!$docStore.filePath) return;
+    if (zenMode) zenMode = false;
+    if (presenting) presenting = false;
+    if (activeTab?.isEditing) setMode("view");
+    searchVisible = false;
+
+    await focusDocumentSearchPanel({
+      showPanel: () => tocVisible.set(true),
+      waitForPanel: async () => {
+        await tick();
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      },
+      findInput: () => document.querySelector<HTMLInputElement>("[data-document-search-input]"),
+    });
+  }
 
   function handleScrollForProgress() {
     if (isRestoring) return;
@@ -545,6 +564,13 @@
       else persistSession();
     });
 
+    const revealRenderer = async () => {
+      if (!rendererReady) rendererReady = true;
+      await tick();
+      await waitForCommittedPaint();
+      await getCurrentWindow().show().catch(() => {});
+    };
+
     // Expose functions for native menu and OS file-open handlers
     (window as any).__mdhero_open_file = () => { openVisible = true; };
     (window as any).__mdhero_open_path = (path: string) => {
@@ -560,7 +586,7 @@
       themeMode.update((m) => cycleTheme(m));
     };
     (window as any).__mdhero_find = () => {
-      searchVisible = !searchVisible;
+      void focusTocDocumentSearch();
     };
     (window as any).__mdhero_zen = () => {
       zenMode = !zenMode;
@@ -692,9 +718,17 @@
         }
         if (startupPath && startupKind === "folder") await openFolderInCurrentWindow(startupPath);
         else if (startupPath && startupKind === "file") await openFile(startupPath);
+        if (startupPath) await revealRenderer();
 
         if (!startupPath && get(settings).rememberOpenDocuments) {
-          for (const path of rememberedSession.paths) await openFile(path);
+          const [primaryPath, ...backgroundPaths] = orderSessionPaths(rememberedSession);
+          if (primaryPath) {
+            await openFile(primaryPath);
+            // The active document is usable now. Do not keep the renderer gate
+            // over the UI while the remaining historical tabs are restored.
+            await revealRenderer();
+          }
+          for (const path of backgroundPaths) await openFile(path, { activate: false });
           if (rememberedSession.activePath) {
             const restoredActive = get(tabs).find((tab) => tab.filePath === rememberedSession.activePath);
             if (restoredActive) tabStore.switchTab(restoredActive.id);
@@ -735,13 +769,7 @@
       } finally {
         sessionPersistenceReady = true;
         persistSession();
-        rendererReady = true;
-        // The configured main window stays hidden through renderer and session
-        // restoration. Reveal only the completed Svelte frame so users never
-        // see WebView2's blank host surface or an intermediate Home/loading
-        // state before their remembered document appears.
-        await tick();
-        await getCurrentWindow().show().catch(() => {});
+        await revealRenderer();
       }
     })();
 
@@ -881,6 +909,13 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
+    // Platform-standard find: Ctrl+F on Windows/Linux, Cmd+F on macOS.
+    // Search lives in the document outline, so reveal that panel before focus.
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "f") {
+      e.preventDefault();
+      void focusTocDocumentSearch();
+      return;
+    }
     // F5 reloads the active document from disk instead of reloading the WebView,
     // which would destroy the in-memory tab session and return to Home.
     if (e.key === "F5") {
@@ -1144,6 +1179,8 @@
     const tab = allTabs.find((t) => t.id === id);
     if (!tab) return;
 
+    folderWorkspace.syncActiveFile(tab.filePath);
+
     docStore.set({
       filePath: tab.filePath,
       fileName: tab.fileName,
@@ -1151,8 +1188,8 @@
       renderedHtml: tab.renderedHtml,
       frontmatter: tab.frontmatter,
       wordCount: tab.wordCount,
-      loading: false,
-      error: null,
+      loading: tab.loading,
+      error: tab.error,
     });
 
     // Auto-present a Marp deck on activation when the setting is on and we're not
@@ -1212,7 +1249,7 @@
       presenting={presenting}
       onTogglePresent={togglePresent}
       onNew={() => newDocument()}
-      onFind={() => (searchVisible = !searchVisible)}
+      onFind={() => void focusTocDocumentSearch()}
       onAbout={() => (aboutVisible = true)}
       onQuit={() => (window as any).__mdhero_quit?.()}
       onCloseActive={() => activeTab && handleCloseTab(activeTab.id)}

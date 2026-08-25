@@ -5,6 +5,7 @@
   import { tabStore } from "$lib/stores/tabs";
   import { messages } from "$lib/i18n";
   import { copyFileName, copyPath } from "$lib/utils/clipboard";
+  import { workspaceAncestorDirectories, workspacePathEquals } from "$lib/utils/workspacePath";
 
   let { root, refreshKey }: { root: string; refreshKey: number } = $props();
   let entriesByPath = $state<Record<string, DirectoryEntry[]>>({});
@@ -19,6 +20,8 @@
   let renameBusy = false;
   let contextEntry = $state<DirectoryEntry | null>(null);
   let contextPosition = $state({ x: 0, y: 0 });
+  let treeElement = $state<HTMLElement>();
+  let revealSequence = 0;
 
   onMount(() => {
     const closeOnPointerDown = (event: PointerEvent) => {
@@ -169,6 +172,34 @@
       load(currentRoot, true);
     });
   });
+
+  async function revealSelectedFile(path: string, sequence: number) {
+    const ancestors = workspaceAncestorDirectories(root, path);
+    if (ancestors === null) return;
+    let parent = root;
+    for (const directory of ancestors) {
+      if (sequence !== revealSequence) return;
+      await load(parent);
+      const actualDirectory = entriesByPath[parent]?.find((entry) =>
+        entry.kind === "folder" && workspacePathEquals(entry.path, directory)
+      );
+      if (!actualDirectory) return;
+      folderWorkspace.setExpanded(actualDirectory.path, true);
+      parent = actualDirectory.path;
+    }
+    await load(parent);
+    await tick();
+    if (sequence !== revealSequence) return;
+    const row = Array.from(treeElement?.querySelectorAll<HTMLElement>(".tree-row") ?? [])
+      .find((element) => workspacePathEquals(element.dataset.entryPath ?? "", path));
+    row?.scrollIntoView({ block: "nearest" });
+  }
+
+  $effect(() => {
+    const selectedPath = $folderWorkspace.selectedPath;
+    const sequence = ++revealSequence;
+    if (selectedPath) untrack(() => void revealSelectedFile(selectedPath, sequence));
+  });
 </script>
 
 {#snippet nodes(parent: string, depth: number)}
@@ -181,7 +212,8 @@
       {@const expanded = entry.kind === "folder" && $folderWorkspace.expandedPaths.includes(entry.path)}
       <button
         class="tree-row"
-        class:selected={$folderWorkspace.selectedPath === entry.path}
+        class:selected={$folderWorkspace.selectedPath !== null && workspacePathEquals($folderWorkspace.selectedPath, entry.path)}
+        data-entry-path={entry.path}
         style:padding-left={`${13 + depth * 14}px`}
         title={entry.path}
         onclick={() => handleClick(entry)}
@@ -220,7 +252,7 @@
   {/if}
 {/snippet}
 
-<nav class="directory-tree" aria-label={$messages.markdownFiles}>
+<nav class="directory-tree" aria-label={$messages.markdownFiles} bind:this={treeElement}>
   {@render nodes(root, 0)}
 </nav>
 

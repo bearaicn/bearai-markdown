@@ -1,6 +1,6 @@
 [package]
 name = "bearai-markdown"
-version = "0.1.3"
+version = "0.1.4"
 description = "BearAI Markdown desktop reader, editor, and folder browser"
 authors = ["BearAI Contributors"]
 license = "MIT"

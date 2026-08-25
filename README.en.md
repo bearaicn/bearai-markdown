@@ -198,6 +198,22 @@ pnpm tauri build
 This section records every release on BearAI Markdown's own version line. Upstream MDHero `v0.2.x`
 tags are not BearAI Markdown product versions.
 
+### v0.1.4 (2026-08-25)
+
+**Features and improvements**
+
+- When many tabs are open, opening or switching documents now scrolls the tab strip so the active tab remains visible. New files create and activate a loading tab before disk reading and rendering, reducing the impression that content and tabs appear out of order.
+- Windows `Ctrl+F` and macOS `Cmd+F` now focus the in-document search above the document outline. The TOC panel opens automatically when hidden, and results navigate directly to matching text.
+- Tabs and the folder tree now synchronize in both directions. Switching tabs selects, expands, and reveals the matching workspace file without changing the tree selection for external or transient documents.
+- Startup restores the previously active document first, then restores remaining historical tabs in the background without stealing the active document.
+
+**Bug fixes**
+
+- Fixed repeated directory expansion synchronization causing an infinite Svelte Store update loop, leaving the UI on “Loading renderer,” continuously consuming CPU, and growing WebView2 memory into multiple gigabytes. Repeated expansion, selection, and active-file synchronization are now idempotent.
+- Fixed the native window exposing an unpainted WebView2 host as a prolonged white screen. The main window is hidden during startup, shown only after the active document and committed browser frames are ready, and still has a five-second native failure-safe reveal.
+- Fixed session restoration keeping the renderer overlay visible until every historical document had loaded serially.
+- Fixed Windows extended path prefixes, path casing, and slash differences preventing the folder tree from recognizing the active tab's file.
+
 ### v0.1.3 (2026-08-25)
 
 **Features and improvements**
@@ -254,8 +270,9 @@ The next stage will proceed in this order, and completed work will move into the
    `latest.json`, then verify signed download and installation across two consecutive versions. The private key will never enter the repository.
 2. Validate native traffic-light placement and hover glyphs, system corners, fullscreen behavior, recent documents, installation, signing, and notarization on real macOS hardware. Neither a Windows build nor a passing macOS CI job can replace this acceptance step.
 3. Add complete update feedback for “already up to date,” network failures, and manual download.
-4. Resolve the remaining Svelte accessibility warnings and split oversized frontend build chunks.
-5. Plan a compatibility-safe migration away from the historical `mdhero` Tauri identifier without losing recent projects, settings, or reading progress.
+4. Add automated desktop startup, session restoration, memory-stability, and first-frame white-screen regression gates.
+5. Resolve the remaining Svelte accessibility warnings and split oversized frontend build chunks.
+6. Plan a compatibility-safe migration away from the historical `mdhero` Tauri identifier without losing recent projects, settings, or reading progress.
 
 ## Keyboard shortcuts
 

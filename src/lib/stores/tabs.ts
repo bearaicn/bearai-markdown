@@ -14,11 +14,13 @@ export interface Tab {
   editContent: string;
   dirty: boolean;
   lastSavedAt: number;
+  loading: boolean;
+  error: string | null;
 }
 
 export const HOME_TAB_ID = "__home__";
 
-function createTabStore() {
+export function createTabStore() {
   const tabs = writable<Tab[]>([]);
   const activeTabId = writable<string | null>(HOME_TAB_ID);
 
@@ -61,11 +63,64 @@ function createTabStore() {
       editContent: content,
       dirty: false,
       lastSavedAt: 0,
+      loading: false,
+      error: null,
     };
 
     tabs.update((ts) => [...ts, newTab]);
     activeTabId.set(id);
     return id;
+  }
+
+  /** Activate an existing file immediately, or create an active loading tab. */
+  function beginOpenTab(filePath: string, fileName: string, activate = true): string {
+    const existing = get(tabs).find((tab) => tab.filePath === filePath);
+    if (existing) {
+      if (activate) switchTab(existing.id);
+      return existing.id;
+    }
+
+    const id = generateId();
+    const newTab: Tab = {
+      id,
+      filePath,
+      fileName,
+      content: "",
+      renderedHtml: "",
+      frontmatter: null,
+      wordCount: 0,
+      scrollTop: 0,
+      isEditing: false,
+      editContent: "",
+      dirty: false,
+      lastSavedAt: 0,
+      loading: true,
+      error: null,
+    };
+    tabs.update((current) => [...current, newTab]);
+    if (activate) activeTabId.set(id);
+    return id;
+  }
+
+  function finishOpenTab(id: string, content: string, renderedHtml: string, frontmatter?: Record<string, unknown> | null, wordCount?: number) {
+    tabs.update((current) => current.map((tab) => tab.id === id ? {
+      ...tab,
+      content,
+      renderedHtml,
+      frontmatter: frontmatter ?? null,
+      wordCount: wordCount ?? 0,
+      editContent: tab.dirty ? tab.editContent : content,
+      loading: false,
+      error: null,
+    } : tab));
+  }
+
+  function failOpenTab(id: string, error: string) {
+    tabs.update((current) => current.map((tab) => tab.id === id ? {
+      ...tab,
+      loading: false,
+      error,
+    } : tab));
   }
 
   function closeTab(id: string) {
@@ -220,6 +275,9 @@ function createTabStore() {
     rebindPath,
     renamePaths,
     saveScrollPosition,
+    beginOpenTab,
+    finishOpenTab,
+    failOpenTab,
   };
 }
 

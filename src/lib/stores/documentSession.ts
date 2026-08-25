@@ -7,6 +7,12 @@ export interface DocumentSession {
   activePath: string | null;
 }
 
+/** Put the last active document first so startup can render useful content quickly. */
+export function orderSessionPaths(session: DocumentSession): string[] {
+  if (!session.activePath) return [...session.paths];
+  return [session.activePath, ...session.paths.filter((path) => path !== session.activePath)];
+}
+
 function isFilesystemPath(path: string): boolean {
   return Boolean(path) && !/^(new|paste|url):\/\//i.test(path);
 }

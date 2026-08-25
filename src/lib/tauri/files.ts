@@ -21,21 +21,11 @@ function fileNameFromPath(path: string): string {
   return normalized.split("/").pop() || normalized;
 }
 
-export async function openFile(path: string): Promise<void> {
+export async function openFile(path: string, options: { activate?: boolean } = {}): Promise<void> {
   const absolutePath = await resolvePath(path);
   const fileName = fileNameFromPath(absolutePath);
   const baseDir = getBaseDir(absolutePath);
-
-  document.set({
-    filePath: absolutePath,
-    fileName,
-    content: "",
-    renderedHtml: "",
-    frontmatter: null,
-    wordCount: 0,
-    loading: true,
-    error: null,
-  });
+  const tabId = tabStore.beginOpenTab(absolutePath, fileName, options.activate ?? true);
 
   try {
     const content = await readMarkdownFile(absolutePath);
@@ -45,37 +35,43 @@ export async function openFile(path: string): Promise<void> {
     // HTML hits the DOM, so images outside the static $HOME scope load (#31).
     await allowAssets(result.assetPaths);
 
-    const tabId = tabStore.addTab(absolutePath, fileName, content, result.html, result.frontmatter, result.wordCount);
+    tabStore.finishOpenTab(tabId, content, result.html, result.frontmatter, result.wordCount);
 
     // An empty file has nothing to read — drop straight into the editor so the
     // user can start writing, instead of staring at a blank viewer (#52).
     if (content.trim() === "") tabStore.setEditing(tabId, true);
 
-    document.set({
-      filePath: absolutePath,
-      fileName,
-      content,
-      renderedHtml: result.html,
-      frontmatter: result.frontmatter,
-      wordCount: result.wordCount,
-      loading: false,
-      error: null,
-    });
+    if (tabStore.getActiveTab()?.id === tabId) {
+      document.set({
+        filePath: absolutePath,
+        fileName,
+        content,
+        renderedHtml: result.html,
+        frontmatter: result.frontmatter,
+        wordCount: result.wordCount,
+        loading: false,
+        error: null,
+      });
+      getCurrentWindow().setTitle(`${fileName} — ${currentAppName()}`).catch(() => {});
+    }
 
     addRecentFile(absolutePath, fileName);
-    getCurrentWindow().setTitle(`${fileName} — ${currentAppName()}`).catch(() => {});
     invoke("start_watching", { path: absolutePath }).catch(() => {});
   } catch (err) {
-    document.set({
-      filePath: absolutePath,
-      fileName,
-      content: "",
-      renderedHtml: "",
-      frontmatter: null,
-      wordCount: 0,
-      loading: false,
-      error: `Failed to open file: ${err}`,
-    });
+    const message = `Failed to open file: ${err}`;
+    tabStore.failOpenTab(tabId, message);
+    if (tabStore.getActiveTab()?.id === tabId) {
+      document.set({
+        filePath: absolutePath,
+        fileName,
+        content: "",
+        renderedHtml: "",
+        frontmatter: null,
+        wordCount: 0,
+        loading: false,
+        error: message,
+      });
+    }
   }
 }
 

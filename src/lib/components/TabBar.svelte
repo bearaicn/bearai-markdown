@@ -4,7 +4,8 @@
   import { copyFileName, copyPath } from "$lib/utils/clipboard";
   import { revealInFileExplorer } from "$lib/tauri/folders";
   import { messages } from "$lib/i18n";
-  import { onMount } from "svelte";
+  import { getScrollLeftToReveal } from "$lib/utils/tabVisibility";
+  import { onMount, tick } from "svelte";
 
   let {
     onCloseTab = (id: string) => tabStore.closeTab(id),
@@ -55,6 +56,31 @@
   $effect(() => {
     $tabs;
     requestAnimationFrame(updateOverflow);
+  });
+
+  $effect(() => {
+    const activeId = $activeTabId;
+    $tabs.length;
+    if (!activeId || activeId === HOME_TAB_ID) return;
+
+    void tick().then(() => requestAnimationFrame(() => {
+      if (!filesElement) return;
+      const activeElement = Array.from(filesElement.children).find(
+        (element) => (element as HTMLElement).dataset.tabId === activeId,
+      ) as HTMLElement | undefined;
+      if (!activeElement) return;
+
+      const viewport = filesElement.getBoundingClientRect();
+      const item = activeElement.getBoundingClientRect();
+      filesElement.scrollLeft = getScrollLeftToReveal(
+        viewport.left,
+        viewport.right,
+        item.left,
+        item.right,
+        filesElement.scrollLeft,
+      );
+      updateOverflow();
+    }));
   });
 
   function handleClose(e: MouseEvent, id: string) {
@@ -226,6 +252,7 @@
           class="tab"
           class:active={$activeTabId === tab.id}
           class:drag-over={overIndex === idx && dragIndex !== idx && dragIndex >= 0}
+          data-tab-id={tab.id}
         >
           <span class="tab-label">
             {#if tab.dirty}<span class="tab-dirty" title={$messages.unsavedChanges}>•</span>{/if}{tab.fileName}

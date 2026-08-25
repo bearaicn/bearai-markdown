@@ -181,7 +181,7 @@
         <div class="dropdown app-menu-dropdown">
           <button class="dropdown-item" onclick={() => { closeAll(); onNew(); }}><span>{$messages.newDocument}</span><span class="dropdown-hint">Ctrl+N</span></button>
           <button class="dropdown-item" onclick={() => { closeAll(); onOpen(); }}><span>{$messages.open}</span><span class="dropdown-hint">Ctrl+O</span></button>
-          <button class="dropdown-item" onclick={() => { closeAll(); onFind(); }}><span>{$messages.find}</span><span class="dropdown-hint">Ctrl+F</span></button>
+          <button class="dropdown-item" onclick={() => { closeAll(); onFind(); }}><span>{$messages.find}</span><span class="dropdown-hint">{isMac ? "Cmd+F" : "Ctrl+F"}</span></button>
           <button class="dropdown-item" disabled={!$document.filePath} onclick={() => { closeAll(); onCloseActive(); }}><span>{$messages.closeTab}</span><span class="dropdown-hint">Ctrl+W</span></button>
           <div class="dropdown-separator"></div>
           <button class="dropdown-item" onclick={toggleFullscreen}><span>{$messages.fullscreen}</span><span class="dropdown-hint">F11</span></button>

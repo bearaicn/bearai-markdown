@@ -38,4 +38,22 @@ describe("open document session", () => {
     const session = await import("../../src/lib/stores/documentSession");
     expect(session.loadDocumentSession()).toEqual({ paths: ["D:\\valid.md"], activePath: null });
   });
+
+  it("restores the previously active document first", async () => {
+    const session = await import("../../src/lib/stores/documentSession");
+    expect(session.orderSessionPaths({
+      paths: ["D:\\notes\\one.md", "D:\\notes\\two.md", "D:\\notes\\three.md"],
+      activePath: "D:\\notes\\three.md",
+    })).toEqual([
+      "D:\\notes\\three.md",
+      "D:\\notes\\one.md",
+      "D:\\notes\\two.md",
+    ]);
+  });
+
+  it("preserves path order when there is no active document", async () => {
+    const session = await import("../../src/lib/stores/documentSession");
+    expect(session.orderSessionPaths({ paths: ["a.md", "b.md"], activePath: null }))
+      .toEqual(["a.md", "b.md"]);
+  });
 });

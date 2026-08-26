@@ -171,10 +171,12 @@ fn parse_bearai_markdown_url(url: &tauri::Url) -> Option<String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Decorations are platform policy, not user window state. Persisting this
+    // flag allowed an older frameless macOS release to override the current
+    // native Overlay title bar and permanently hide the traffic lights.
     let window_state_flags = tauri_plugin_window_state::StateFlags::SIZE
         | tauri_plugin_window_state::StateFlags::POSITION
         | tauri_plugin_window_state::StateFlags::MAXIMIZED
-        | tauri_plugin_window_state::StateFlags::DECORATIONS
         | tauri_plugin_window_state::StateFlags::FULLSCREEN;
 
     tauri::Builder::default()
@@ -204,6 +206,7 @@ pub fn run() {
             commands::list_folder_md_files,
             commands::list_directory,
             commands::rename_directory_entry,
+            commands::delete_directory_entry,
             commands::search_workspace_markdown,
             commands::quit_app,
             commands::show_ai_context_menu,
@@ -235,6 +238,8 @@ pub fn run() {
             // quit_app (AppHandle::exit) is a hard exit that bypasses this, so a
             // confirmed quit can't loop back here.
             if let Some(main_window) = app.get_webview_window("main") {
+                #[cfg(target_os = "macos")]
+                main_window.set_decorations(true)?;
                 #[cfg(not(target_os = "macos"))]
                 main_window.set_decorations(false)?;
 

@@ -6,7 +6,7 @@
   import { loadTocState, saveTocState } from "$lib/stores/tocState";
   import { panelLayout } from "$lib/stores/panelLayout";
   import { messages } from "$lib/i18n";
-  import { findTextMatches } from "$lib/utils/documentSearch";
+  import { findTextMatches, nextSearchResultIndex } from "$lib/utils/documentSearch";
   import { getContentScrollElement, getContentScrollTop, scrollContentTo } from "$lib/utils/contentScroll";
 
   let collapsed = $state<Set<string>>(new Set());
@@ -83,6 +83,13 @@
     if (HighlightCtor && highlights) highlights.set("document-search-current", new HighlightCtor(result.range));
     const target = result.range.startContainer.parentElement;
     target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function handleSearchKeydown(event: KeyboardEvent) {
+    if (event.key !== "Enter" || event.isComposing) return;
+    event.preventDefault();
+    const nextIndex = nextSearchResultIndex(activeSearchIndex, searchResults.length);
+    if (nextIndex >= 0) goToSearchResult(nextIndex);
   }
 
   onDestroy(() => {
@@ -178,6 +185,7 @@
           type="search"
           value={searchQuery}
           oninput={(event) => { searchQuery = event.currentTarget.value; searchDocument(); }}
+          onkeydown={handleSearchKeydown}
           placeholder={$messages.tocSearchPlaceholder}
           aria-label={$messages.tocSearchPlaceholder}
         />

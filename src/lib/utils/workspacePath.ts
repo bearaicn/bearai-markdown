@@ -20,6 +20,15 @@ export function workspacePathEquals(left: string, right: string): boolean {
   return a.windows === b.windows && a.value === b.value;
 }
 
+export function workspacePathIsSameOrDescendant(parent: string, candidate: string): boolean {
+  const base = normalize(parent);
+  const item = normalize(candidate);
+  if (base.windows !== item.windows) return false;
+  if (base.value === item.value) return true;
+  const separator = base.windows ? "\\" : "/";
+  return item.value.startsWith(`${base.value}${separator}`);
+}
+
 /**
  * Returns the directory chain below root that must be expanded to reveal file.
  * The returned paths use the workspace root's spelling so they match tree keys.

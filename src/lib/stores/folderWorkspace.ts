@@ -1,5 +1,5 @@
 import { get, writable } from "svelte/store";
-import { workspaceAncestorDirectories } from "../utils/workspacePath";
+import { workspaceAncestorDirectories, workspacePathEquals, workspacePathIsSameOrDescendant } from "../utils/workspacePath";
 
 const STORAGE_KEY = "mdhero-folder-workspace-v1";
 const isolatedWindow = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("open-path");
@@ -82,5 +82,15 @@ export const folderWorkspace = {
         ? `${newPath}${normalized.slice(oldNormalized.length)}` : path;
     };
     store.update((state) => ({ ...state, expandedPaths: state.expandedPaths.map((path) => replace(path) as string), selectedPath: replace(state.selectedPath) }));
+  },
+  removePaths(path: string, isDirectory: boolean) {
+    const matches = (candidate: string | null) => Boolean(candidate) && (isDirectory
+      ? workspacePathIsSameOrDescendant(path, candidate as string)
+      : workspacePathEquals(path, candidate as string));
+    store.update((state) => ({
+      ...state,
+      expandedPaths: state.expandedPaths.filter((candidate) => !matches(candidate)),
+      selectedPath: matches(state.selectedPath) ? null : state.selectedPath,
+    }));
   },
 };

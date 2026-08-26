@@ -69,6 +69,7 @@
   let showAppMenu = $state(false);
   let showLanguageMenu = $state(false);
   let showThemeMenu = $state(false);
+  let showOverflowMenu = $state(false);
   let copyFeedback = $state("");
   let maximized = $state(false);
   let isMac = $state(false);
@@ -83,6 +84,7 @@
     showAppMenu = false;
     showLanguageMenu = false;
     showThemeMenu = false;
+    showOverflowMenu = false;
   }
 
   function toggleAppMenu() {
@@ -126,6 +128,12 @@
     const next = !showThemeMenu;
     closeAll();
     showThemeMenu = next;
+  }
+
+  function toggleOverflowMenu() {
+    const next = !showOverflowMenu;
+    closeAll();
+    showOverflowMenu = next;
   }
 
   function toggleWidthMode() {
@@ -175,6 +183,7 @@
   <div class="toolbar-left" class:mac-native-titlebar={isMac}>
     <img src={brandLogo} alt={$messages.appName} width="26" height="26" class="toolbar-logo" />
     <span class="toolbar-wordmark" data-tauri-drag-region>{$messages.appName}</span>
+    <div class="toolbar-primary-tools collapsible-tools">
     <div class="menu-wrap">
       <button onclick={toggleAppMenu} class="btn app-menu-btn" class:active={showAppMenu} title={$messages.fileMenu} aria-label={$messages.fileMenu}>•••</button>
       {#if showAppMenu}
@@ -204,6 +213,7 @@
         <svg width="18" height="18" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="5.5"/><ellipse cx="7" cy="7" rx="2.5" ry="5.5"/><line x1="1.5" y1="7" x2="12.5" y2="7"/></svg>
       </button>
     </div>
+    </div>
 
     {#if $document.fileName && currentHeading}
       <span class="current-heading">{currentHeading}</span>
@@ -213,7 +223,7 @@
   <!-- View / Split / Edit segmented control, centered in the toolbar. Split &
        Edit need an editable local file; when there isn't one they disable with
        an explaining tip. -->
-  <div class="toolbar-center">
+  <div class="toolbar-center collapsible-tools">
     <div
       class="mode-segmented"
       role="group"
@@ -246,6 +256,7 @@
   </div>
 
   <div class="toolbar-right">
+    <div class="toolbar-actions collapsible-tools">
     <button
       onclick={() => folderWorkspace.toggleVisible()}
       class="btn btn-icon folder-panel-toggle"
@@ -419,10 +430,60 @@
     </button>
 
     <div class="separator"></div>
+    </div>
+
+    <div class="menu-wrap toolbar-overflow">
+      <button
+        onclick={toggleOverflowMenu}
+        class="btn btn-icon overflow-button"
+        class:active={showOverflowMenu}
+        title={$messages.moreTools}
+        aria-label={$messages.moreTools}
+        aria-expanded={showOverflowMenu}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="4" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/><circle cx="16" cy="10" r="1.5"/></svg>
+      </button>
+      {#if showOverflowMenu}
+        <div class="dropdown overflow-dropdown">
+          <button class="dropdown-item" onclick={() => { closeAll(); onNew(); }}><span>{$messages.newDocument}</span><span class="dropdown-hint">Ctrl+N</span></button>
+          <button class="dropdown-item" onclick={() => { closeAll(); onOpen(); }}><span>{$messages.open}</span><span class="dropdown-hint">Ctrl+O</span></button>
+          <button class="dropdown-item" onclick={() => { closeAll(); onPaste(); }}><span>{$messages.paste}</span></button>
+          <button class="dropdown-item" onclick={() => { closeAll(); onUrl(); }}><span>{$messages.openUrl}</span></button>
+          <button class="dropdown-item" onclick={() => { closeAll(); onFind(); }}><span>{$messages.find}</span><span class="dropdown-hint">{isMac ? "Cmd+F" : "Ctrl+F"}</span></button>
+          <div class="dropdown-separator"></div>
+          <button class="dropdown-item" class:active={editMode === 'view'} disabled={!$document.filePath} onclick={() => { closeAll(); onSetMode('view'); }}><span>{$messages.view}</span></button>
+          <button class="dropdown-item" class:active={editMode === 'split'} disabled={!canEdit} onclick={() => { closeAll(); onSetMode('split'); }}><span>{$messages.split}</span></button>
+          <button class="dropdown-item" class:active={editMode === 'edit'} disabled={!canEdit} onclick={() => { closeAll(); onSetMode('edit'); }}><span>{$messages.edit}</span></button>
+          <div class="dropdown-separator"></div>
+          <button class="dropdown-item" disabled={!$folderWorkspace.rootPath || isEditing} onclick={() => { closeAll(); folderWorkspace.toggleVisible(); }}><span>{$folderWorkspace.sidebarVisible ? $messages.hideFolder : $messages.showFolder}</span></button>
+          <button class="dropdown-item" disabled={!$document.renderedHtml || $tocEntries.length === 0 || isEditing} onclick={() => { closeAll(); toggleToc(); }}><span>{$messages.toc}</span></button>
+          <button class="dropdown-item" disabled={!$document.renderedHtml} onclick={toggleReaderControls}><span>{$messages.readingPreferences}</span></button>
+          <button class="dropdown-item" disabled={!$document.renderedHtml} onclick={toggleWidthMode}><span>{$messages.widthMode}</span></button>
+          <button class="dropdown-item" disabled={!$document.renderedHtml || isEditing} onclick={() => { closeAll(); onRawToggle(); }}><span>{$messages.markdownSource}</span></button>
+          {#if canPresent}<button class="dropdown-item" onclick={() => { closeAll(); onTogglePresent(); }}><span>{presenting ? $messages.exitPresentation : $messages.present}</span></button>{/if}
+          <button class="dropdown-item" disabled={!dirty} onclick={() => { closeAll(); onSave(); }}><span>{$messages.save}</span></button>
+          <button class="dropdown-item" disabled={!$document.renderedHtml || isEditing} onclick={() => { showOverflowMenu = false; handleCopyRichText(); }}><span>{$messages.richText}</span></button>
+          <button class="dropdown-item" disabled={!$document.renderedHtml || isEditing} onclick={() => { showOverflowMenu = false; handleCopyMarkdown(); }}><span>{$messages.markdownSource}</span></button>
+          <button class="dropdown-item" disabled={!$document.renderedHtml || isEditing} onclick={() => { closeAll(); handleExportPdf(); }}><span>{$messages.exportPdf}</span></button>
+          <div class="dropdown-separator"></div>
+          <button class="dropdown-item" onclick={() => { closeAll(); onOpenSettings(); }}><span>{$messages.settings}</span><span class="dropdown-hint">Ctrl+,</span></button>
+          {#each $availableLocales as option}
+            <button class="dropdown-item" class:active={$locale === option.code} onclick={() => { setLocale(option.code); closeAll(); }}>
+              <span>{$messages.language}: {option.label}</span>{#if $locale === option.code}<span>✓</span>{/if}
+            </button>
+          {/each}
+          {#each themeOptions as option}
+            <button class="dropdown-item" class:active={$themeMode === option.id} onclick={() => { setTheme(option.id as ThemeMode); closeAll(); }}>
+              <span>{$messages.theme}: {option.id === 'system' ? $messages.followSystem : ($locale === 'zh-CN' ? option.name : option.nameEn)}</span>{#if $themeMode === option.id}<span>✓</span>{/if}
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
 
     <button
       onclick={() => { closeAll(); onOpenSettings(); }}
-      class="btn btn-icon"
+      class="btn btn-icon collapsible-tools"
       title={$messages.settings + ' (Ctrl+,)'}
       aria-label={$messages.settings}
     >
@@ -432,7 +493,7 @@
       </svg>
     </button>
 
-    <div class="menu-wrap">
+    <div class="menu-wrap collapsible-tools">
       <button onclick={toggleLanguageMenu} class="btn btn-icon" class:active={showLanguageMenu} title={$messages.language} aria-label={$messages.language}>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M3.5 10h13M10 3c2 2.2 3 4.5 3 7s-1 4.8-3 7c-2-2.2-3-4.5-3-7s1-4.8 3-7z"/></svg>
       </button>
@@ -447,7 +508,7 @@
       {/if}
     </div>
 
-    <div class="menu-wrap">
+    <div class="menu-wrap collapsible-tools">
       <button onclick={toggleThemeMenu} class="btn btn-icon" class:active={showThemeMenu} title={$messages.theme} aria-label={$messages.theme}>
         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.35a1.9 1.9 0 0 0 1.35-3.24 1.9 1.9 0 0 1 1.35-3.24H18A3 3 0 0 0 21 11.5 8.5 8.5 0 0 0 12 3Z"/><circle cx="7.5" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="10" cy="6.9" r="1" fill="currentColor" stroke="none"/><circle cx="14" cy="6.8" r="1" fill="currentColor" stroke="none"/><circle cx="17" cy="9.5" r="1" fill="currentColor" stroke="none"/></svg>
       </button>
@@ -474,7 +535,7 @@
   </div>
 </header>
 
-{#if showCopyMenu || showReaderControls || showAppMenu || showLanguageMenu || showThemeMenu}
+{#if showCopyMenu || showReaderControls || showAppMenu || showLanguageMenu || showThemeMenu || showOverflowMenu}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="fixed inset-0 z-[9]" onclick={closeAll} onkeydown={() => {}}></div>
 {/if}
@@ -494,6 +555,8 @@
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid #e5e5e5;
     user-select: none;
+    container-type: inline-size;
+    container-name: toolbar;
   }
 
   :global(html.dark) .toolbar {
@@ -534,7 +597,18 @@
     flex-shrink: 0;
   }
 
+  .toolbar-primary-tools,
+  .toolbar-actions {
+    display: flex;
+    align-items: center;
+  }
+
+  .toolbar-primary-tools { gap: 10px; }
+  .toolbar-actions { gap: 2px; }
+
   .folder-panel-toggle { margin-left: 12px; position: relative; }
+  .toolbar-overflow { display: none; flex-shrink: 0; }
+  .overflow-dropdown { width: 240px; max-height: min(520px, calc(100vh - 54px)); overflow-y: auto; }
   .folder-panel-toggle::before { content: ""; position: absolute; left: -7px; top: 6px; bottom: 6px; width: 1px; background: var(--app-border); }
 
   /* macOS keeps the native traffic lights in the transparent overlay titlebar.
@@ -792,6 +866,9 @@
     background: #f2f2f7;
   }
 
+  .dropdown-item:disabled { opacity: .42; cursor: not-allowed; }
+  .dropdown-item:disabled:hover { background: transparent; }
+
   :global(html.dark) .dropdown-item:hover {
     background: #3a3a3c;
   }
@@ -846,5 +923,14 @@
     .toolbar-wordmark { display: none; }
     .btn-primary, .btn-ghost { padding-left: 10px; padding-right: 10px; }
     .mode-seg { padding-left: 7px; padding-right: 7px; }
+  }
+
+  @container toolbar (max-width: 860px) {
+    .collapsible-tools { display: none !important; }
+    .toolbar-overflow { display: block; }
+    .toolbar-wordmark, .current-heading { display: none; }
+    .toolbar-left { flex: 0 0 auto; gap: 0; }
+    .toolbar-right { margin-left: auto; min-width: 0; }
+    .window-controls { flex: 0 0 auto; }
   }
 </style>

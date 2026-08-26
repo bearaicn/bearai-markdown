@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick, untrack } from "svelte";
-  import { listDirectory, openWorkspaceFile, renameDirectoryEntry, revealInFileExplorer, type DirectoryEntry } from "$lib/tauri/folders";
+  import { deleteDirectoryEntry, listDirectory, openWorkspaceFile, renameDirectoryEntry, revealInFileExplorer, type DirectoryEntry } from "$lib/tauri/folders";
   import { folderWorkspace } from "$lib/stores/folderWorkspace";
   import { tabStore } from "$lib/stores/tabs";
   import { messages } from "$lib/i18n";
@@ -133,7 +133,7 @@
     contextEntry = entry;
     contextPosition = {
       x: Math.min(event.clientX, window.innerWidth - 210),
-      y: Math.min(event.clientY, window.innerHeight - 154),
+      y: Math.min(event.clientY, window.innerHeight - 220),
     };
   }
 
@@ -158,6 +158,33 @@
     const path = contextEntry?.path;
     contextEntry = null;
     if (path) await copyFileName(path);
+  }
+
+  async function deleteContextEntry() {
+    const entry = contextEntry;
+    contextEntry = null;
+    if (!entry) return;
+    const { confirm } = await import("@tauri-apps/plugin-dialog");
+    const accepted = await confirm(
+      `${entry.kind === "folder" ? $messages.deleteFolderConfirm : $messages.deleteFileConfirm}\n\n${entry.name}`,
+      {
+        title: $messages.deleteEntryTitle,
+        kind: "warning",
+        okLabel: entry.kind === "folder" ? $messages.deleteFolder : $messages.deleteFile,
+        cancelLabel: $messages.cancel,
+      },
+    );
+    if (!accepted) return;
+    try {
+      await deleteDirectoryEntry(root, entry.path, entry.kind);
+      tabStore.closePaths(entry.path, entry.kind === "folder");
+      folderWorkspace.removePaths(entry.path, entry.kind === "folder");
+      entriesByPath = {};
+      errors = {};
+      await load(root, true);
+    } catch (err) {
+      errors = { ...errors, [root]: `${$messages.deleteEntryFailed}: ${String(err)}` };
+    }
   }
 
   $effect(() => {
@@ -263,6 +290,8 @@
     <button onclick={revealContextEntry}>{$messages.revealInFileExplorer}</button>
     <button onclick={copyContextPath}>{$messages.copyFilePath}</button>
     <button onclick={copyContextName}>{$messages.copyFileName}</button>
+    <div class="tree-context-separator"></div>
+    <button class="danger" onclick={deleteContextEntry}>{contextEntry.kind === "folder" ? $messages.deleteFolder : $messages.deleteFile}</button>
   </div>
 {/if}
 
@@ -285,9 +314,12 @@
   .tree-context-menu { position: fixed; z-index: 50; width: 200px; padding: 5px; border: 1px solid var(--app-border); border-radius: 9px; background: var(--app-chrome); box-shadow: 0 10px 30px rgb(0 0 0 / 18%); }
   .tree-context-menu button { width: 100%; padding: 7px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--app-text); text-align: left; font-size: 12px; cursor: pointer; }
   .tree-context-menu button:hover { background: var(--app-hover); }
+  .tree-context-menu button.danger { color: #c62828; }
+  .tree-context-menu button.danger:hover { background: color-mix(in srgb, #c62828 12%, transparent); }
   .tree-context-separator { height: 1px; margin: 4px 6px; background: var(--app-border); }
   :global(html.dark) .tree-context-menu { border-color: #3a3a3c; background: #2c2c2e; }
   :global(html.dark) .tree-context-menu button { color: #e5e5e7; }
+  :global(html.dark) .tree-context-menu button.danger { color: #ff6b6b; }
   :global(html.dark) .tree-context-menu button:hover { background: #3a3a3c; }
   .tree-message { display: block; width: 100%; padding-top: 7px; padding-bottom: 7px; border: 0; background: transparent; color: #8e8e93; font-size: 11px; text-align: left; }
   .tree-error { color: #c62828; cursor: pointer; }

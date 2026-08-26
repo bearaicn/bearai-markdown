@@ -4,6 +4,11 @@ export interface TextMatch {
   excerpt: string;
 }
 
+export function nextSearchResultIndex(currentIndex: number, resultCount: number): number {
+  if (resultCount <= 0) return -1;
+  return (currentIndex + 1) % resultCount;
+}
+
 export function findTextMatches(text: string, query: string, limit = 200): TextMatch[] {
   const needle = query.trim().toLocaleLowerCase();
   if (!needle) return [];

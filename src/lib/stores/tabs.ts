@@ -1,5 +1,6 @@
 import { writable, get } from "svelte/store";
 import { getContentScrollTop } from "../utils/contentScroll";
+import { workspacePathEquals, workspacePathIsSameOrDescendant } from "../utils/workspacePath";
 
 export interface Tab {
   id: string;
@@ -258,6 +259,15 @@ export function createTabStore() {
     }));
   }
 
+  function closePaths(path: string, isDirectory: boolean) {
+    const matchingIds = get(tabs)
+      .filter((tab) => isDirectory
+        ? workspacePathIsSameOrDescendant(path, tab.filePath)
+        : workspacePathEquals(path, tab.filePath))
+      .map((tab) => tab.id);
+    for (const id of matchingIds) closeTab(id);
+  }
+
   return {
     tabs,
     activeTabId,
@@ -274,6 +284,7 @@ export function createTabStore() {
     getLastSavedAt,
     rebindPath,
     renamePaths,
+    closePaths,
     saveScrollPosition,
     beginOpenTab,
     finishOpenTab,

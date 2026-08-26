@@ -56,6 +56,19 @@ describe("tab activation", () => {
       renderedHtml: "<p>first</p>",
     });
   });
+
+  it("closes an exact deleted file or every tab below a deleted folder", () => {
+    const store = createTabStore();
+    store.addTab("D:\\notes\\one.md", "one.md", "", "");
+    store.addTab("D:\\notes\\docs\\two.md", "two.md", "", "");
+    store.addTab("D:\\notes\\docs\\nested\\three.md", "three.md", "", "");
+
+    store.closePaths("D:\\notes\\one.md", false);
+    expect(get(store.tabs).map((tab) => tab.fileName)).toEqual(["two.md", "three.md"]);
+
+    store.closePaths("D:\\notes\\docs", true);
+    expect(get(store.tabs)).toEqual([]);
+  });
 });
 
 describe("active tab visibility", () => {

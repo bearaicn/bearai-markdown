@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findTextMatches } from "../../src/lib/utils/documentSearch";
+import { findTextMatches, nextSearchResultIndex } from "../../src/lib/utils/documentSearch";
 
 describe("findTextMatches", () => {
   it("finds every case-insensitive occurrence in document order", () => {
@@ -16,5 +16,18 @@ describe("findTextMatches", () => {
 
   it("does not search a blank query", () => {
     expect(findTextMatches("content", "   ")).toEqual([]);
+  });
+});
+
+describe("nextSearchResultIndex", () => {
+  it("starts at the first result and advances in document order", () => {
+    expect(nextSearchResultIndex(-1, 3)).toBe(0);
+    expect(nextSearchResultIndex(0, 3)).toBe(1);
+    expect(nextSearchResultIndex(1, 3)).toBe(2);
+  });
+
+  it("wraps after the final result and handles an empty result set", () => {
+    expect(nextSearchResultIndex(2, 3)).toBe(0);
+    expect(nextSearchResultIndex(-1, 0)).toBe(-1);
   });
 });

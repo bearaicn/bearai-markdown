@@ -37,4 +37,16 @@ describe("folder workspace active-file sync", () => {
     expect(emissions).toBe(afterFirstExpansion);
     unsubscribe();
   });
+
+  it("removes deleted folders from expansion and selection state", () => {
+    folderWorkspace.open("D:\\Notes");
+    folderWorkspace.setExpanded("D:\\Notes\\Docs", true);
+    folderWorkspace.setExpanded("D:\\Notes\\Docs\\Nested", true);
+    folderWorkspace.select("D:\\Notes\\Docs\\Nested\\note.md");
+
+    folderWorkspace.removePaths("D:\\Notes\\Docs", true);
+
+    expect(get(folderWorkspace).expandedPaths).toEqual([]);
+    expect(get(folderWorkspace).selectedPath).toBeNull();
+  });
 });

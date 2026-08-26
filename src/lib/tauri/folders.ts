@@ -37,6 +37,10 @@ export async function renameDirectoryEntry(root: string, path: string, newName: 
   return invoke<string>("rename_directory_entry", { root, path, newName });
 }
 
+export async function deleteDirectoryEntry(root: string, path: string, kind: DirectoryEntry["kind"]): Promise<void> {
+  return invoke<void>("delete_directory_entry", { root, path, kind });
+}
+
 export async function revealInFileExplorer(path: string): Promise<void> {
   const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
   await revealItemInDir(path);

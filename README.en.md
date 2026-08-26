@@ -198,6 +198,23 @@ pnpm tauri build
 This section records every release on BearAI Markdown's own version line. Upstream MDHero `v0.2.x`
 tags are not BearAI Markdown product versions.
 
+### v0.1.5 (2026-08-26)
+
+**Features and improvements**
+
+- Added red “Delete file” and “Delete folder” actions to the folder-tree context menu. A native confirmation dialog clearly identifies permanent deletion, while canceling leaves the filesystem unchanged.
+- Added Rust-side workspace-boundary, entry-type, and Markdown-file validation. Deleting the workspace root or anything outside it is rejected, and successful deletion also closes related tabs and removes stale selection and expansion state.
+- On narrow windows, the product logo and native window controls now remain visible while middle toolbar actions collapse into a “More tools” menu.
+- Pressing Enter repeatedly in the document-outline search now navigates through the first, second, and subsequent matches, wrapping after the last result.
+
+**Bug fixes**
+
+- Fixed restored window state reapplying a historical macOS `decorations` value and hiding the native traffic lights, which could leave the window without close controls. macOS now explicitly restores native decorations at startup while Windows retains its custom controls.
+- Fixed Windows NSIS upgrades launching the previous uninstaller from inside the new installer and potentially failing with `Error launching installer`. Same-location upgrades now let the new installer safely clean old files and install over them while preserving downgrade protection.
+- Fixed related tabs, the active document, or stale folder state remaining after directory deletion.
+
+> Windows automated checks and installer builds are completed before this release is published. GitHub Actions builds the macOS package, but native traffic lights, system confirmation dialogs, and deletion flows still require manual acceptance on real Mac hardware.
+
 ### v0.1.4 (2026-08-25)
 
 **Features and improvements**
@@ -268,7 +285,7 @@ The next stage will proceed in this order, and completed work will move into the
 
 1. Establish a BearAI-specific Tauri updater signing key, GitHub Actions Secrets, public key, and
    `latest.json`, then verify signed download and installation across two consecutive versions. The private key will never enter the repository.
-2. Validate native traffic-light placement and hover glyphs, system corners, fullscreen behavior, recent documents, installation, signing, and notarization on real macOS hardware. Neither a Windows build nor a passing macOS CI job can replace this acceptance step.
+2. Validate native traffic-light placement and hover glyphs, system corners, fullscreen behavior, native delete confirmation, file/folder deletion, recent documents, installation, signing, and notarization on real macOS hardware. Neither a Windows build nor a passing macOS CI job can replace this acceptance step.
 3. Add complete update feedback for “already up to date,” network failures, and manual download.
 4. Add automated desktop startup, session restoration, memory-stability, and first-frame white-screen regression gates.
 5. Resolve the remaining Svelte accessibility warnings and split oversized frontend build chunks.

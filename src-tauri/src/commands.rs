@@ -519,9 +519,31 @@ pub fn rename_directory_entry(
     Ok(destination.to_string_lossy().to_string())
 }
 
+/// Permanently delete one visible workspace entry. The canonical workspace is
+/// a hard boundary and the workspace root itself can never be removed.
+#[tauri::command]
+pub fn delete_directory_entry(root: String, path: String, kind: String) -> Result<(), String> {
+    let root_path =
+        fs::canonicalize(&root).map_err(|e| format!("Cannot open folder '{}': {}", root, e))?;
+    let source = fs::canonicalize(&path).map_err(|e| format!("Cannot find '{}': {}", path, e))?;
+    if source == root_path || !source.starts_with(&root_path) {
+        return Err("Entry is outside the opened workspace or is the workspace root".into());
+    }
+
+    match kind.as_str() {
+        "file" if source.is_file() && is_markdown_path(&source) => fs::remove_file(&source)
+            .map_err(|e| format!("Failed to delete file '{}': {}", path, e)),
+        "folder" if source.is_dir() => fs::remove_dir_all(&source)
+            .map_err(|e| format!("Failed to delete folder '{}': {}", path, e)),
+        "file" => Err("Only Markdown files can be deleted from the workspace tree".into()),
+        "folder" => Err("The selected entry is not a folder".into()),
+        _ => Err("Unknown workspace entry type".into()),
+    }
+}
+
 #[cfg(test)]
 mod directory_tests {
-    use super::{list_directory, rename_directory_entry, search_workspace_markdown};
+    use super::{delete_directory_entry, list_directory, rename_directory_entry, search_workspace_markdown};
     use std::{
         fs,
         time::{SystemTime, UNIX_EPOCH},
@@ -635,6 +657,33 @@ mod directory_tests {
         );
         assert!(rename_directory_entry(root_s, renamed, "existing.md".into()).is_err());
         fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn deletes_markdown_files_and_folders_inside_the_workspace_only() {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let base = std::env::temp_dir().join(format!("mdhero-delete-test-{suffix}"));
+        let root = base.join("root");
+        let outside = base.join("outside.md");
+        let folder = root.join("docs");
+        let file = root.join("note.md");
+        fs::create_dir_all(&folder).unwrap();
+        fs::write(folder.join("nested.md"), "# Nested").unwrap();
+        fs::write(&file, "# Note").unwrap();
+        fs::write(&outside, "# Outside").unwrap();
+        let root_s = root.to_string_lossy().to_string();
+
+        delete_directory_entry(root_s.clone(), file.to_string_lossy().to_string(), "file".into()).unwrap();
+        assert!(!file.exists());
+        delete_directory_entry(root_s.clone(), folder.to_string_lossy().to_string(), "folder".into()).unwrap();
+        assert!(!folder.exists());
+        assert!(delete_directory_entry(root_s.clone(), root_s.clone(), "folder".into()).is_err());
+        assert!(delete_directory_entry(root_s, outside.to_string_lossy().to_string(), "file".into()).is_err());
+
+        fs::remove_dir_all(&base).unwrap();
     }
 }
 

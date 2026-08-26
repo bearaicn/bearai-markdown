@@ -7,10 +7,26 @@ export interface DocumentSession {
   activePath: string | null;
 }
 
-/** Put the last active document first so startup can render useful content quickly. */
-export function orderSessionPaths(session: DocumentSession): string[] {
-  if (!session.activePath) return [...session.paths];
-  return [session.activePath, ...session.paths.filter((path) => path !== session.activePath)];
+export interface DocumentSessionRestorePlan {
+  /** Exact visual tab order from the previous session. */
+  tabPaths: string[];
+  /** Disk-read order, with the active document first for a fast first paint. */
+  loadPaths: string[];
+  activePath: string | null;
+}
+
+/** Keep visual order and I/O priority separate during startup restoration. */
+export function createDocumentSessionRestorePlan(session: DocumentSession): DocumentSessionRestorePlan {
+  const tabPaths = [...session.paths];
+  const loadPaths = session.activePath
+    ? [session.activePath, ...tabPaths.filter((path) => path !== session.activePath)]
+    : [...tabPaths];
+  return { tabPaths, loadPaths, activePath: session.activePath };
+}
+
+export function sessionFileName(path: string): string {
+  const normalized = path.replace(/\\/g, "/").replace(/\/+$/, "");
+  return normalized.split("/").pop() || normalized;
 }
 
 function isFilesystemPath(path: string): boolean {

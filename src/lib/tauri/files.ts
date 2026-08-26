@@ -7,6 +7,7 @@ import { tabStore } from "../stores/tabs";
 import { renderFull } from "../renderer/pipeline";
 import { addRecentFile } from "../stores/recents";
 import { openPathInNewWindow, requestOpenDestination } from "../stores/openDestination";
+import { shouldCommitActiveReload } from "$lib/utils/tabRefreshActivation";
 
 export async function readMarkdownFile(path: string): Promise<string> {
   return invoke<string>("read_markdown_file", { path });
@@ -167,16 +168,21 @@ export async function reloadCurrentFile(path: string): Promise<void> {
 
     tabStore.updateTabContent(absolutePath, content, result.html, result.frontmatter, result.wordCount);
 
-    document.set({
-      filePath: absolutePath,
-      fileName,
-      content,
-      renderedHtml: result.html,
-      frontmatter: result.frontmatter,
-      wordCount: result.wordCount,
-      loading: false,
-      error: null,
-    });
+    // Disk reads are asynchronous. The user may have selected another tab
+    // before this one finishes, so only update the global viewer when this
+    // file is still active. The background tab itself is always refreshed.
+    if (shouldCommitActiveReload(absolutePath, tabStore.getActiveTab()?.filePath)) {
+      document.set({
+        filePath: absolutePath,
+        fileName,
+        content,
+        renderedHtml: result.html,
+        frontmatter: result.frontmatter,
+        wordCount: result.wordCount,
+        loading: false,
+        error: null,
+      });
+    }
   } catch (err) {
     console.error("Failed to reload file:", err);
   }

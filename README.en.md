@@ -198,6 +198,24 @@ pnpm tauri build
 This section records every release on BearAI Markdown's own version line. Upstream MDHero `v0.2.x`
 tags are not BearAI Markdown product versions.
 
+### v0.1.6 (2026-08-26)
+
+**Features and improvements**
+
+- Tab drag-and-drop now uses explicit insertion positions: hovering the left or right half of a tab shows the corresponding edge marker, while the previous tab's right edge and the next tab's left edge share one logical gap. The first and final positions are supported as well.
+- Switching to an open local document now activates its tab and cached content immediately, then refreshes the latest disk content in the background, reducing the impression that blank content appears before the tab changes.
+- Session restoration preserves the exact previous tab order and active document while still prioritizing the active document's disk read for a faster first useful frame.
+- Clicking a Markdown file in the folder tree no longer waits for the folder double-click timer. File opening is immediate, while folders retain their double-click-to-rename behavior.
+
+**Bug fixes**
+
+- Fixed external file changes not being picked up when switching back to a tab. Editing tabs and tabs with unsaved changes remain protected from automatic replacement.
+- Fixed a race where a slower refresh started for an older tab could finish later and incorrectly replace the currently visible document.
+- Fixed session restoration moving the active document to the first tab in order to load it early, which prevented the original order and active selection from being restored together.
+- Fixed tab drag feedback always appearing on the target tab's left edge, making it ambiguous whether the drop would insert before or after that tab.
+
+> This release has passed frontend unit tests, Svelte checks, a production build, and local Rust/Tauri gates. GitHub Actions builds the Windows and macOS installers. Drag feel, real session restart restoration, and macOS window behavior should still be accepted manually on their respective desktop systems.
+
 ### v0.1.5 (2026-08-26)
 
 **Features and improvements**

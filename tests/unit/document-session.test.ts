@@ -39,21 +39,21 @@ describe("open document session", () => {
     expect(session.loadDocumentSession()).toEqual({ paths: ["D:\\valid.md"], activePath: null });
   });
 
-  it("restores the previously active document first", async () => {
+  it("keeps tab order while loading the previously active document first", async () => {
     const session = await import("../../src/lib/stores/documentSession");
-    expect(session.orderSessionPaths({
-      paths: ["D:\\notes\\one.md", "D:\\notes\\two.md", "D:\\notes\\three.md"],
-      activePath: "D:\\notes\\three.md",
-    })).toEqual([
-      "D:\\notes\\three.md",
-      "D:\\notes\\one.md",
-      "D:\\notes\\two.md",
-    ]);
+    expect(session.createDocumentSessionRestorePlan({
+      paths: ["D:\\notes\\B.md", "D:\\notes\\A.md", "D:\\notes\\C.md", "D:\\notes\\D.md"],
+      activePath: "D:\\notes\\C.md",
+    })).toEqual({
+      tabPaths: ["D:\\notes\\B.md", "D:\\notes\\A.md", "D:\\notes\\C.md", "D:\\notes\\D.md"],
+      loadPaths: ["D:\\notes\\C.md", "D:\\notes\\B.md", "D:\\notes\\A.md", "D:\\notes\\D.md"],
+      activePath: "D:\\notes\\C.md",
+    });
   });
 
   it("preserves path order when there is no active document", async () => {
     const session = await import("../../src/lib/stores/documentSession");
-    expect(session.orderSessionPaths({ paths: ["a.md", "b.md"], activePath: null }))
-      .toEqual(["a.md", "b.md"]);
+    expect(session.createDocumentSessionRestorePlan({ paths: ["a.md", "b.md"], activePath: null }))
+      .toEqual({ tabPaths: ["a.md", "b.md"], loadPaths: ["a.md", "b.md"], activePath: null });
   });
 });

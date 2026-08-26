@@ -82,6 +82,12 @@
   function handleClick(entry: DirectoryEntry) {
     if (renamingPath === entry.path) return;
     if (clickTimer) clearTimeout(clickTimer);
+    // Files have the same action for click and double-click, so there is no
+    // reason to hold every activation for the folder rename gesture window.
+    if (entry.kind === "file") {
+      void toggle(entry);
+      return;
+    }
     clickTimer = setTimeout(() => toggle(entry), 220);
   }
 

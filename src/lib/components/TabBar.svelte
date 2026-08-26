@@ -1,11 +1,13 @@
 <script lang="ts">
   import { tabStore, HOME_TAB_ID, type Tab } from "$lib/stores/tabs";
-  import { newDocument } from "$lib/tauri/files";
+  import { newDocument, reloadCurrentFile } from "$lib/tauri/files";
   import { copyFileName, copyPath } from "$lib/utils/clipboard";
   import { revealInFileExplorer } from "$lib/tauri/folders";
   import { messages } from "$lib/i18n";
   import { getScrollLeftToReveal } from "$lib/utils/tabVisibility";
   import { onMount, tick } from "svelte";
+  import { activateTabWithRefresh } from "$lib/utils/tabRefreshActivation";
+  import { getTabDropTarget, type TabDropTarget } from "$lib/utils/tabDragInsertion";
 
   let {
     onCloseTab = (id: string) => tabStore.closeTab(id),
@@ -17,7 +19,7 @@
 
   const { tabs, activeTabId } = tabStore;
   let dragIndex = $state(-1);
-  let overIndex = $state(-1);
+  let dropTarget = $state<TabDropTarget | null>(null);
   let contextMenuTab = $state<Tab | null>(null);
   let contextMenuPos = $state({ x: 0, y: 0 });
   let copyFeedback = $state("");
@@ -115,24 +117,20 @@
     dragIndex = idx;
 
     function handleMouseMove(ev: MouseEvent) {
-      const tabbar = document.querySelector(".tabbar-files");
-      if (!tabbar) return;
-      const children = Array.from(tabbar.children) as HTMLElement[];
-      for (let i = 0; i < children.length; i++) {
-        const rect = children[i].getBoundingClientRect();
-        if (ev.clientX >= rect.left && ev.clientX < rect.right) {
-          overIndex = i;
-          break;
-        }
-      }
+      if (!filesElement) return;
+      const rects = Array.from(filesElement.children).map((child) => {
+        const rect = child.getBoundingClientRect();
+        return { left: rect.left, right: rect.right };
+      });
+      dropTarget = getTabDropTarget(ev.clientX, rects);
     }
 
     function handleMouseUp() {
-      if (dragIndex >= 0 && overIndex >= 0 && dragIndex !== overIndex) {
-        tabStore.reorderTabs(dragIndex, overIndex);
+      if (dragIndex >= 0 && dropTarget) {
+        tabStore.reorderTabs(dragIndex, dropTarget.boundaryIndex);
       }
       dragIndex = -1;
-      overIndex = -1;
+      dropTarget = null;
       (window as any).__mdhero_tab_dragging = false;
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
@@ -174,8 +172,15 @@
     contextMenuTab = null;
   }
 
-  function selectOverflowTab(id: string) {
-    tabStore.switchTab(id);
+  function activateTab(tab: Tab) {
+    activateTabWithRefresh(tab, {
+      activate: tabStore.switchTab,
+      reload: reloadCurrentFile,
+    });
+  }
+
+  function selectOverflowTab(tab: Tab) {
+    activateTab(tab);
     overflowMenuOpen = false;
   }
 
@@ -247,11 +252,12 @@
         <div
           onmousedown={(e) => handleMouseDown(e, idx)}
           onauxclick={(e) => handleAuxClick(e, tab.id)}
-          onclick={() => tabStore.switchTab(tab.id)}
+          onclick={() => activateTab(tab)}
           oncontextmenu={(e) => handleContextMenu(e, tab)}
           class="tab"
           class:active={$activeTabId === tab.id}
-          class:drag-over={overIndex === idx && dragIndex !== idx && dragIndex >= 0}
+          class:drop-before={dragIndex >= 0 && dropTarget?.targetIndex === idx && dropTarget.side === "left"}
+          class:drop-after={dragIndex >= 0 && dropTarget?.targetIndex === idx && dropTarget.side === "right"}
           data-tab-id={tab.id}
         >
           <span class="tab-label">
@@ -304,7 +310,7 @@
 {#if overflowMenuOpen}
   <div class="dropdown overflow-dropdown" style="left: {overflowMenuPos.x}px; top: {overflowMenuPos.y}px;">
     {#each $tabs as tab (tab.id)}
-      <button class="dropdown-item overflow-item" class:current={$activeTabId === tab.id} onclick={() => selectOverflowTab(tab.id)} title={tab.filePath}>
+      <button class="dropdown-item overflow-item" class:current={$activeTabId === tab.id} onclick={() => selectOverflowTab(tab)} title={tab.filePath}>
         <span class="overflow-check">{$activeTabId === tab.id ? "✓" : ""}</span>
         <span class="overflow-name">{#if tab.dirty}<span class="tab-dirty">•</span>{/if}{tab.fileName}</span>
       </button>
@@ -396,12 +402,37 @@
     border-bottom: 2px solid #22D3EE;
   }
 
-  .tab.drag-over {
-    border-left: 2px solid #0891B2;
+  .tab.drop-before::before,
+  .tab.drop-after::after {
+    content: "";
+    position: absolute;
+    z-index: 2;
+    top: 5px;
+    bottom: 4px;
+    width: 3px;
+    border-radius: 999px;
+    background: #0891B2;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--app-tabbar) 70%, transparent), 0 0 7px rgb(8 145 178 / 45%);
+    pointer-events: none;
+    animation: tab-drop-marker-in 120ms ease-out;
   }
 
-  :global(html.dark) .tab.drag-over {
-    border-left-color: #22D3EE;
+  .tab.drop-before::before { left: -2px; }
+  .tab.drop-after::after { right: -2px; }
+
+  :global(html.dark) .tab.drop-before::before,
+  :global(html.dark) .tab.drop-after::after {
+    background: #22D3EE;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--app-tabbar) 70%, transparent), 0 0 7px rgb(34 211 238 / 48%);
+  }
+
+  @keyframes tab-drop-marker-in {
+    from { opacity: 0; transform: scaleY(.55); }
+    to { opacity: 1; transform: scaleY(1); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tab.drop-before::before, .tab.drop-after::after { animation: none; }
   }
 
   /* Home tab */

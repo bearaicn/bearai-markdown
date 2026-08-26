@@ -1,6 +1,7 @@
 import { writable, get } from "svelte/store";
 import { getContentScrollTop } from "../utils/contentScroll";
 import { workspacePathEquals, workspacePathIsSameOrDescendant } from "../utils/workspacePath";
+import { moveItemToInsertionBoundary } from "../utils/tabDragInsertion";
 
 export interface Tab {
   id: string;
@@ -195,13 +196,8 @@ export function createTabStore() {
     return get(tabs).find((t) => t.id === id) ?? null;
   }
 
-  function reorderTabs(fromIndex: number, toIndex: number) {
-    tabs.update((ts) => {
-      const arr = [...ts];
-      const [moved] = arr.splice(fromIndex, 1);
-      arr.splice(toIndex, 0, moved);
-      return arr;
-    });
+  function reorderTabs(fromIndex: number, insertionBoundary: number) {
+    tabs.update((current) => moveItemToInsertionBoundary(current, fromIndex, insertionBoundary));
   }
 
   function setEditing(id: string, editing: boolean) {

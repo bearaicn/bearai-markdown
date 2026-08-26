@@ -36,6 +36,7 @@
   import AboutDialog from "$lib/components/AboutDialog.svelte";
   import CustomPromptModal from "$lib/components/CustomPromptModal.svelte";
   import { assembleUrlByIds, consumePendingSelection } from "$lib/stores/aiLookup";
+  import { activateTabWithRefresh } from "$lib/utils/tabRefreshActivation";
   import FrontmatterBar from "$lib/components/FrontmatterBar.svelte";
   import StatusBar from "$lib/components/StatusBar.svelte";
   import ProgressBar from "$lib/components/ProgressBar.svelte";
@@ -55,7 +56,7 @@
   import { get } from "svelte/store";
   import { getCurrentSourceLine, scrollToSourceLine, type ViewMode } from "$lib/utils/scroll-sync";
   import { saveProgress, getProgress } from "$lib/stores/readingProgress";
-  import { clearDocumentSession, loadDocumentSession, orderSessionPaths, saveDocumentSession } from "$lib/stores/documentSession";
+  import { clearDocumentSession, createDocumentSessionRestorePlan, loadDocumentSession, saveDocumentSession, sessionFileName } from "$lib/stores/documentSession";
   import { waitForCommittedPaint } from "$lib/utils/startupPaint";
   import { panelLayout } from "$lib/stores/panelLayout";
   import { focusDocumentSearchPanel } from "$lib/utils/documentSearchFocus";
@@ -721,16 +722,23 @@
         if (startupPath) await revealRenderer();
 
         if (!startupPath && get(settings).rememberOpenDocuments) {
-          const [primaryPath, ...backgroundPaths] = orderSessionPaths(rememberedSession);
+          const restorePlan = createDocumentSessionRestorePlan(rememberedSession);
+          // Establish every loading tab in its original visual position before
+          // prioritizing disk reads. Loading the active document first must not
+          // move it to the start of the tab strip.
+          for (const path of restorePlan.tabPaths) {
+            tabStore.beginOpenTab(path, sessionFileName(path), false);
+          }
+          const [primaryPath, ...backgroundPaths] = restorePlan.loadPaths;
           if (primaryPath) {
-            await openFile(primaryPath);
+            await openFile(primaryPath, { activate: primaryPath === restorePlan.activePath });
             // The active document is usable now. Do not keep the renderer gate
             // over the UI while the remaining historical tabs are restored.
             await revealRenderer();
           }
           for (const path of backgroundPaths) await openFile(path, { activate: false });
-          if (rememberedSession.activePath) {
-            const restoredActive = get(tabs).find((tab) => tab.filePath === rememberedSession.activePath);
+          if (restorePlan.activePath) {
+            const restoredActive = get(tabs).find((tab) => tab.filePath === restorePlan.activePath);
             if (restoredActive) tabStore.switchTab(restoredActive.id);
           }
         }
@@ -904,7 +912,8 @@
     if (nextId === HOME_TAB_ID) {
       tabStore.goHome();
     } else {
-      tabStore.switchTab(nextId);
+      const tab = $tabs.find((candidate) => candidate.id === nextId);
+      if (tab) activateTabWithRefresh(tab, { activate: tabStore.switchTab, reload: reloadCurrentFile });
     }
   }
 
@@ -938,7 +947,7 @@
       e.preventDefault();
       const idx = parseInt(e.key) - 1;
       if ($tabs[idx]) {
-        tabStore.switchTab($tabs[idx].id);
+        activateTabWithRefresh($tabs[idx], { activate: tabStore.switchTab, reload: reloadCurrentFile });
       }
       return;
     }

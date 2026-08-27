@@ -187,6 +187,17 @@ pnpm tauri build
 本节按 BearAI Markdown 自有版本线记录每次发布的功能与修复；上游 MDHero 的 `v0.2.x`
 标签不属于 BearAI Markdown 的产品版本号。
 
+### v0.1.7（2026-08-27）
+
+**Bug 修复**
+
+- 修复 `v0.1.6` 全新安装或卸载后重装时，默认安装目录可能再次使用中文产品名并落到 `%LOCALAPPDATA%\熊智 Markdown` 的问题。
+- 将产品显示名称与安装目录标识彻底解耦：界面、快捷方式和“已安装的应用”继续显示“熊智 Markdown”，Windows 默认安装目录固定使用 ASCII 名称 `BearAIMarkdown`。
+- 自定义 NSIS 模板现在直接定义稳定的 `BEARAI_INSTALL_DIR_NAME`，当前用户安装默认进入 `%LOCALAPPDATA%\BearAIMarkdown`，机器级安装默认进入 `Program Files\BearAIMarkdown`；已有安装位置和用户自选目录仍通过历史位置恢复逻辑原地升级。
+- 增加安装目录回归测试，禁止模板重新退回由 `${PRODUCTNAME}` 决定物理目录的实现。
+
+> 本修复针对安装器默认路径。升级时不会强制搬迁用户已经存在的安装目录；如旧版实际安装在中文目录，建议先正常卸载，再使用 v0.1.7 安装包完成干净安装。
+
 ### v0.1.6（2026-08-26）
 
 **新增与改进**

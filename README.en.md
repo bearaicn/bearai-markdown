@@ -198,6 +198,17 @@ pnpm tauri build
 This section records every release on BearAI Markdown's own version line. Upstream MDHero `v0.2.x`
 tags are not BearAI Markdown product versions.
 
+### v0.1.7 (2026-08-27)
+
+**Bug fixes**
+
+- Fixed fresh installs or reinstalls after uninstalling v0.1.6 potentially deriving the default directory from the localized product name and returning to `%LOCALAPPDATA%\熊智 Markdown`.
+- Fully separated the user-facing product name from the physical install-directory identifier. The UI, shortcuts, and Installed Apps entry remain “熊智 Markdown,” while the Windows default directory consistently uses the ASCII name `BearAIMarkdown`.
+- The custom NSIS template now defines a stable `BEARAI_INSTALL_DIR_NAME` directly. Per-user installs default to `%LOCALAPPDATA%\BearAIMarkdown`, machine-wide installs default to `Program Files\BearAIMarkdown`, and existing or user-selected locations are still restored for in-place upgrades.
+- Added an install-directory regression test that prevents the template from falling back to `${PRODUCTNAME}` for the physical path.
+
+> This fix controls the default installer path and does not forcibly move an existing installation. If an older build is physically installed in the localized directory, uninstall it normally and then perform a clean v0.1.7 installation.
+
 ### v0.1.6 (2026-08-26)
 
 **Features and improvements**

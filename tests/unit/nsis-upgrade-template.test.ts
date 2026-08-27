@@ -9,6 +9,17 @@ function readProjectFile(path: string): string {
 }
 
 describe('NSIS upgrade template', () => {
+  it('uses BearAIMarkdown as the fresh per-user install directory', () => {
+    const config = JSON.parse(readProjectFile('src-tauri/tauri.conf.json'));
+    const template = readProjectFile(`src-tauri/${config.bundle.windows.nsis.template}`);
+
+    expect(template).toContain('!define BEARAI_INSTALL_DIR_NAME "BearAIMarkdown"');
+    expect(template).toMatch(
+      /INSTALLMODE\}" == "currentUser"[\s\S]*?StrCpy \$INSTDIR "\$LOCALAPPDATA\\\$\{BEARAI_INSTALL_DIR_NAME\}"[\s\S]*?Call RestorePreviousInstallLocation/
+    );
+    expect(template).not.toContain('StrCpy $INSTDIR "$LOCALAPPDATA\\${PRODUCTNAME}"');
+  });
+
   it('uses the project template and skips nested NSIS uninstallers', () => {
     const config = JSON.parse(readProjectFile('src-tauri/tauri.conf.json'));
     const templatePath = config.bundle?.windows?.nsis?.template;

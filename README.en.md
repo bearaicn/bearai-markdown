@@ -198,6 +198,22 @@ pnpm tauri build
 This section records every release on BearAI Markdown's own version line. Upstream MDHero `v0.2.x`
 tags are not BearAI Markdown product versions.
 
+### v0.1.8 (2026-08-28)
+
+**Features and improvements**
+
+- On Windows and macOS, the native window is now shown as soon as the WebView finishes loading the basic page instead of waiting for historical document restoration to finish.
+- Added a full-app themed startup overlay with the BearAI Markdown logo, localized product name, a “Restoring your workspace…” status, and a lightweight progress animation. It inherits the current theme's SVG/scene background and respects reduced-motion preferences.
+- The overlay fades after the active document becomes usable while the remaining historical tabs continue restoring in the background, providing immediate feedback even for larger saved sessions.
+
+**Bug fixes**
+
+- Removed the macOS runtime decoration mutation after window creation. Native traffic lights, Overlay title bar, rounded corners, and shadow remain controlled by the macOS-specific Tauri configuration, reducing interference between traffic-light setup and first display.
+- Removed the frontend window `show()` call from historical restoration and the fixed five-second native fallback thread. Native-window visibility and document restoration are now independent states.
+- Added regression coverage for startup-window timing, the themed overlay, and the macOS decoration policy.
+
+> This release passed Windows unit tests, Svelte checks, the production frontend build, Rust checks, and a local Release/NSIS build. The Windows startup overlay and real-macOS first/repeat launch timing, traffic lights, rounded corners, fullscreen behavior, and background session restoration still require physical desktop acceptance; passing CI does not replace testing on a real Mac.
+
 ### v0.1.7 (2026-08-27)
 
 **Bug fixes**
@@ -314,7 +330,7 @@ The next stage will proceed in this order, and completed work will move into the
 
 1. Establish a BearAI-specific Tauri updater signing key, GitHub Actions Secrets, public key, and
    `latest.json`, then verify signed download and installation across two consecutive versions. The private key will never enter the repository.
-2. Validate native traffic-light placement and hover glyphs, system corners, fullscreen behavior, native delete confirmation, file/folder deletion, recent documents, installation, signing, and notarization on real macOS hardware. Neither a Windows build nor a passing macOS CI job can replace this acceptance step.
+2. Validate the themed startup overlay, first and repeat launch timing, native traffic-light placement and hover glyphs, system corners, fullscreen behavior, native delete confirmation, file/folder deletion, recent documents, installation, signing, and notarization on real macOS hardware. Neither a Windows build nor a passing macOS CI job can replace this acceptance step.
 3. Add complete update feedback for “already up to date,” network failures, and manual download.
 4. Add automated desktop startup, session restoration, memory-stability, and first-frame white-screen regression gates.
 5. Resolve the remaining Svelte accessibility warnings and split oversized frontend build chunks.

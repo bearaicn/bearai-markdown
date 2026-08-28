@@ -96,6 +96,7 @@ export default {
   lineNumbersHint: "Show a line-number gutter in the editor.",
   aiLookupHint: "Right-click selected text in the viewer to send it to an AI tool. Manage providers and saved prompts here.",
   loadingRenderer: "Loading renderer…",
+  startupLoading: "Restoring your workspace…",
   openingFile: "Opening file…",
   loading: "Loading…",
   retryFolder: "Could not read folder · Retry",

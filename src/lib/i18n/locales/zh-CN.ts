@@ -98,6 +98,7 @@ const zh: Record<keyof typeof en, string> = {
   lineNumbersHint: "在编辑器左侧显示行号。",
   aiLookupHint: "在阅读界面右键选中文字并发送到 AI 工具，可在此管理服务商和提示词。",
   loadingRenderer: "正在加载渲染器…",
+  startupLoading: "正在恢复工作区…",
   openingFile: "正在打开文件…",
   loading: "正在加载…",
   retryFolder: "无法读取文件夹 · 点击重试",

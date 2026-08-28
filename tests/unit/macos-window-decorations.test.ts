@@ -19,12 +19,12 @@ describe("macOS native window controls", () => {
     expect(window.hiddenTitle).toBe(true);
   });
 
-  it("does not restore stale decoration state and explicitly repairs existing macOS installs", () => {
+  it("keeps decorations out of persisted state without mutating the native title bar at runtime", () => {
     const stateFlags = rustSource.slice(
       rustSource.indexOf("let window_state_flags"),
       rustSource.indexOf("tauri::Builder::default()"),
     );
     expect(stateFlags).not.toContain("StateFlags::DECORATIONS");
-    expect(rustSource).toMatch(/#\[cfg\(target_os = "macos"\)\][\s\S]*main_window\.set_decorations\(true\)\?/);
+    expect(rustSource).not.toMatch(/main_window\.set_decorations\(true\)\?/);
   });
 });

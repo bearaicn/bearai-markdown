@@ -60,6 +60,7 @@
   import { waitForCommittedPaint } from "$lib/utils/startupPaint";
   import { panelLayout } from "$lib/stores/panelLayout";
   import { focusDocumentSearchPanel } from "$lib/utils/documentSearchFocus";
+  import StartupOverlay from "$lib/components/StartupOverlay.svelte";
 
   let rendererReady = $state(false);
   let lastWatchedPath: string | null = null;
@@ -565,11 +566,10 @@
       else persistSession();
     });
 
-    const revealRenderer = async () => {
+    const completeStartup = async () => {
       if (!rendererReady) rendererReady = true;
       await tick();
       await waitForCommittedPaint();
-      await getCurrentWindow().show().catch(() => {});
     };
 
     // Expose functions for native menu and OS file-open handlers
@@ -719,7 +719,7 @@
         }
         if (startupPath && startupKind === "folder") await openFolderInCurrentWindow(startupPath);
         else if (startupPath && startupKind === "file") await openFile(startupPath);
-        if (startupPath) await revealRenderer();
+        if (startupPath) await completeStartup();
 
         if (!startupPath && get(settings).rememberOpenDocuments) {
           const restorePlan = createDocumentSessionRestorePlan(rememberedSession);
@@ -734,7 +734,7 @@
             await openFile(primaryPath, { activate: primaryPath === restorePlan.activePath });
             // The active document is usable now. Do not keep the renderer gate
             // over the UI while the remaining historical tabs are restored.
-            await revealRenderer();
+            await completeStartup();
           }
           for (const path of backgroundPaths) await openFile(path, { activate: false });
           if (restorePlan.activePath) {
@@ -777,7 +777,7 @@
       } finally {
         sessionPersistenceReady = true;
         persistSession();
-        await revealRenderer();
+        await completeStartup();
       }
     })();
 
@@ -1365,6 +1365,9 @@
   {/if}
   <UpdateToast />
   <Toast />
+  {#if !rendererReady}
+    <StartupOverlay />
+  {/if}
 </div>
 
 <style>

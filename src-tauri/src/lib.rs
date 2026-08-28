@@ -180,10 +180,9 @@ pub fn run() {
         | tauri_plugin_window_state::StateFlags::FULLSCREEN;
 
     tauri::Builder::default()
-        // Visibility is intentionally excluded: the main window starts hidden
-        // and the frontend reveals it only after session restoration has
-        // painted the final frame. Restoring VISIBLE here causes a white/loading
-        // window to appear before Svelte is ready.
+        // Visibility is intentionally excluded from persisted state. The
+        // window starts hidden and is shown as soon as the WebView's basic page
+        // is committed; a themed in-app overlay then owns session restoration.
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 .with_state_flags(window_state_flags)
@@ -196,6 +195,11 @@ pub fn run() {
         .plugin(tauri_plugin_cli::init())
         .manage(watcher::WatcherState::default())
         .manage(OpenedFiles::default())
+        .on_page_load(|webview, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                let _ = webview.window().show();
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::read_markdown_file,
             commands::write_markdown_file,
@@ -238,20 +242,8 @@ pub fn run() {
             // quit_app (AppHandle::exit) is a hard exit that bypasses this, so a
             // confirmed quit can't loop back here.
             if let Some(main_window) = app.get_webview_window("main") {
-                #[cfg(target_os = "macos")]
-                main_window.set_decorations(true)?;
                 #[cfg(not(target_os = "macos"))]
                 main_window.set_decorations(false)?;
-
-                // The frontend reveals the hidden window as soon as the active
-                // document (or empty home state) is ready. Keep a native safety
-                // net so a renderer exception can never leave the process
-                // permanently running with an invisible window.
-                let startup_window = main_window.clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_secs(5));
-                    let _ = startup_window.show();
-                });
 
                 let quit_win = main_window.clone();
                 main_window.on_window_event(move |event| {

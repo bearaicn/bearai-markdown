@@ -161,9 +161,11 @@ BearAI Markdown 因此不是单纯更换名称和图标，而是围绕这三个�
 ## 下载与安装
 
 BearAI Markdown 的正式安装包发布在本项目的
-[GitHub Releases](https://github.com/bearaicn/bearai-markdown/releases) 页面。Windows 用户可选择
-`.exe`（NSIS）或 `.msi` 安装包；macOS 用户可选择 `.dmg`。请勿将上游 MDHero 的 Release
-安装包当作 BearAI Markdown 安装包。
+[GitHub Releases](https://github.com/bearaicn/bearai-markdown/releases) 页面。Windows 普通版可选择
+`.exe`（NSIS）或 `.msi`；如果电脑缺少 WebView2、无法访问 Microsoft 下载服务或处于离线环境，
+请选择文件名包含 `webview2-offline-setup.exe` 的完整离线安装包。macOS 使用系统自带的
+WKWebView，只需下载 `.dmg`，不存在 WebView2 普通版/离线版之分。请勿将上游 MDHero 的
+Release 安装包当作 BearAI Markdown 安装包。
 
 > [!NOTE]
 > 当前版本可以检查 BearAI Markdown 的 GitHub Release 是否存在新版本，但应用内签名下载与
@@ -186,6 +188,20 @@ pnpm tauri build
 
 本节按 BearAI Markdown 自有版本线记录每次发布的功能与修复；上游 MDHero 的 `v0.2.x`
 标签不属于 BearAI Markdown 的产品版本号。
+
+### v0.1.9（2026-08-28）
+
+**新增与改进**
+
+- Windows Release 同时提供普通安装包和包含 Microsoft Evergreen WebView2 Runtime 安装程序的完整离线包；普通包保持较小体积，离线包用于缺少 WebView2、企业网络受限或无法联网的电脑。
+- 文档目录搜索产生匹配结果后立即默认选中、高亮并定位第一条；继续按 Enter 会从第二条开始依次跳转，并在末项后循环。
+- macOS 继续使用系统 WKWebView，不额外生成 WebView2 安装包。
+
+**Bug 修复**
+
+- 修复文档目录搜索结果已经出现、但必须再按一次 Enter 才能选中第一条的问题。
+
+> 本版自动验证覆盖目录搜索、前端全量测试、Svelte 检查、生产构建、Rust 检查以及 Windows 普通/离线安装包构建。内置 WebView2 的离线安装仍需在一台未安装 WebView2 且断网的真实 Windows 电脑上完成安装和启动验收；macOS CI 构建不能替代真实 Mac 验收。
 
 ### v0.1.8（2026-08-28）
 

@@ -4,6 +4,10 @@ export interface TextMatch {
   excerpt: string;
 }
 
+export function initialSearchResultIndex(resultCount: number): number {
+  return resultCount > 0 ? 0 : -1;
+}
+
 export function nextSearchResultIndex(currentIndex: number, resultCount: number): number {
   if (resultCount <= 0) return -1;
   return (currentIndex + 1) % resultCount;

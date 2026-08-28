@@ -6,7 +6,7 @@
   import { loadTocState, saveTocState } from "$lib/stores/tocState";
   import { panelLayout } from "$lib/stores/panelLayout";
   import { messages } from "$lib/i18n";
-  import { findTextMatches, nextSearchResultIndex } from "$lib/utils/documentSearch";
+  import { findTextMatches, initialSearchResultIndex, nextSearchResultIndex } from "$lib/utils/documentSearch";
   import { getContentScrollElement, getContentScrollTop, scrollContentTo } from "$lib/utils/contentScroll";
 
   let collapsed = $state<Set<string>>(new Set());
@@ -72,6 +72,8 @@
     const HighlightCtor = (globalThis as typeof globalThis & { Highlight?: new (...ranges: Range[]) => unknown }).Highlight;
     const highlights = (globalThis.CSS as typeof CSS & { highlights?: Map<string, unknown> } | undefined)?.highlights;
     if (HighlightCtor && highlights && results.length) highlights.set("document-search-match", new HighlightCtor(...results.map((result) => result.range)));
+    const initialIndex = initialSearchResultIndex(results.length);
+    if (initialIndex >= 0) goToSearchResult(initialIndex);
   }
 
   function goToSearchResult(index: number) {

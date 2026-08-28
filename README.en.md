@@ -171,9 +171,12 @@ layout without exposing any user knowledge-base data.
 ## Download and installation
 
 Official BearAI Markdown installers are published on the project's
-[GitHub Releases](https://github.com/bearaicn/bearai-markdown/releases) page. Windows users can
-choose the `.exe` (NSIS) or `.msi` installer, while macOS users can choose the `.dmg`. Do not
-treat an upstream MDHero release as a BearAI Markdown installer.
+[GitHub Releases](https://github.com/bearaicn/bearai-markdown/releases) page. For a standard Windows
+installation, choose the regular `.exe` (NSIS) or `.msi`. If WebView2 is missing, access to
+Microsoft downloads is restricted, or the computer is offline, choose the larger package whose
+name contains `webview2-offline-setup.exe`. macOS uses the system WKWebView and therefore has no
+separate WebView2 edition; download the `.dmg`. Do not treat an upstream MDHero release as a
+BearAI Markdown installer.
 
 > [!NOTE]
 > The current version can check BearAI Markdown's GitHub Releases for a newer version, but the
@@ -197,6 +200,20 @@ pnpm tauri build
 
 This section records every release on BearAI Markdown's own version line. Upstream MDHero `v0.2.x`
 tags are not BearAI Markdown product versions.
+
+### v0.1.9 (2026-08-28)
+
+**Features and improvements**
+
+- Windows releases now include both the standard installers and a complete offline installer that embeds the Microsoft Evergreen WebView2 Runtime installer. The standard package remains small, while the offline package supports PCs without WebView2, restricted enterprise networks, and disconnected environments.
+- Document-outline search now immediately selects, highlights, and navigates to the first match. Pressing Enter continues from the second match and wraps after the final result.
+- macOS continues to use the system WKWebView and does not produce a separate WebView2 package.
+
+**Bug fixes**
+
+- Fixed document-outline results being visible while the first match remained unselected until Enter was pressed.
+
+> Automated validation covers document search, the complete frontend test suite, Svelte checks, the production build, Rust checks, and both standard and WebView2-offline Windows installer builds. The offline package still requires physical acceptance on a Windows PC with WebView2 absent and networking disabled; passing macOS CI does not replace testing on real Mac hardware.
 
 ### v0.1.8 (2026-08-28)
 

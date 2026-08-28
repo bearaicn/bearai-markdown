@@ -9,6 +9,17 @@ function readProjectFile(path: string): string {
 }
 
 describe('NSIS upgrade template', () => {
+  it('keeps the standard installer online and defines a separate WebView2 offline package', () => {
+    const config = JSON.parse(readProjectFile('src-tauri/tauri.conf.json'));
+    const offlineConfig = JSON.parse(readProjectFile('src-tauri/tauri.webview2-offline.conf.json'));
+    const workflow = readProjectFile('.github/workflows/build.yml');
+
+    expect(config.bundle.windows.webviewInstallMode).toBeUndefined();
+    expect(offlineConfig.bundle.windows.webviewInstallMode).toEqual({ type: 'offlineInstaller' });
+    expect(workflow).toContain('--config src-tauri/tauri.webview2-offline.conf.json');
+    expect(workflow).toContain('webview2-offline-setup.exe');
+  });
+
   it('uses BearAIMarkdown as the fresh per-user install directory', () => {
     const config = JSON.parse(readProjectFile('src-tauri/tauri.conf.json'));
     const template = readProjectFile(`src-tauri/${config.bundle.windows.nsis.template}`);

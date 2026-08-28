@@ -129,9 +129,35 @@ jobs:
 
             ## Install
             - **macOS**: Download the `.dmg` file
-            - **Windows**: Download the `.msi` installer or `.exe` (NSIS)
+            - **Windows (standard)**: Download the `.msi` installer or regular `.exe` (NSIS). If WebView2 is missing, the installer downloads it from Microsoft.
+            - **Windows (offline)**: Download the `webview2-offline-setup.exe` package when the PC is offline, restricted by a corporate network, or does not already have WebView2. This larger package embeds Microsoft's Evergreen WebView2 Runtime installer.
           releaseDraft: false
           prerelease: false
+
+      - name: Build Windows WebView2 offline installer
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        run: pnpm tauri build --bundles nsis --config src-tauri/tauri.webview2-offline.conf.json
+
+      - name: Prepare Windows WebView2 offline installer
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $source = Get-ChildItem "src-tauri/target/release/bundle/nsis/*.exe" |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          if (-not $source) {
+            throw "The WebView2 offline NSIS installer was not produced."
+          }
+          $destination = Join-Path $source.DirectoryName "BearAI-Markdown_${{ github.ref_name }}_x64_webview2-offline-setup.exe"
+          Copy-Item -LiteralPath $source.FullName -Destination $destination
+          "OFFLINE_INSTALLER=$destination" >> $env:GITHUB_ENV
+
+      - name: Upload Windows WebView2 offline installer to release
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.ref_name }}" "$env:OFFLINE_INSTALLER" --clobber
 
       - name: Clean up keychain
         if: always() && matrix.platform == 'macos-latest' && github.event_name != 'pull_request' && env.HAS_APPLE_SIGNING == 'true'

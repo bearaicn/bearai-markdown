@@ -7,7 +7,7 @@
   import { panelLayout } from "$lib/stores/panelLayout";
   import { messages } from "$lib/i18n";
   import { findTextMatches, initialSearchResultIndex, nextSearchResultIndex } from "$lib/utils/documentSearch";
-  import { getContentScrollElement, getContentScrollTop, scrollContentTo } from "$lib/utils/contentScroll";
+  import { contentTopForElement, revealContentTop } from "$lib/utils/contentReveal";
 
   let collapsed = $state<Set<string>>(new Set());
   let searchQuery = $state("");
@@ -84,7 +84,10 @@
     const highlights = (globalThis.CSS as typeof CSS & { highlights?: Map<string, unknown> } | undefined)?.highlights;
     if (HighlightCtor && highlights) highlights.set("document-search-current", new HighlightCtor(result.range));
     const target = result.range.startContainer.parentElement;
-    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (target) {
+      const top = contentTopForElement(target, 64);
+      if (top !== null) revealContentTop(top);
+    }
   }
 
   function handleSearchKeydown(event: KeyboardEvent) {
@@ -148,10 +151,8 @@
     setActiveHeading(id);
     const el = document.getElementById(id);
     if (el) {
-      const scroller = getContentScrollElement();
-      if (!scroller) return;
-      const y = getContentScrollTop() + el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 12;
-      scrollContentTo({ top: y, behavior: "smooth" });
+      const y = contentTopForElement(el, 12);
+      if (y !== null) revealContentTop(y);
     }
   }
 

@@ -92,7 +92,7 @@ established reading and editing experience.
 - **Reader Controls** — adjust font size, line height, and content width.
 - **Zen Mode** — distraction-free full-screen reading.
 - **Image Lightbox** — enlarge images and navigate with the keyboard.
-- **Print and PDF** — print-friendly document output.
+- **Full-document PDF** — paginate the rendered article as A4 PDF without including side panels or depending on the current scroll position.
 - **RTL Content** — basic support for right-to-left document sections.
 
 ### Table of contents and navigation
@@ -200,6 +200,23 @@ pnpm tauri build
 
 This section records every release on BearAI Markdown's own version line. Upstream MDHero `v0.2.x`
 tags are not BearAI Markdown product versions.
+
+### v0.1.10 (2026-08-31)
+
+**Features and improvements**
+
+- Folder full-text results now open the matching Markdown file, navigate from the reported source line to the rendered match, highlight the query, and preserve the active result in the left panel. Matches spanning multiple rendered text nodes are supported.
+- Long-distance outline and in-document-search navigation now jumps close to the destination immediately and animates only a small final movement. Nearby targets retain a natural transition, and reduced-motion preferences are respected.
+- PDF export now uses the MIT-licensed `html2pdf.js`, `html2canvas`, and `jsPDF` stack to generate the complete A4 document. Only the rendered article is exported, independent of the current scroll page and without folder or outline panels.
+- PDF export now includes a native save dialog, localized progress feedback, font and image readiness waits, and `.pdf` extension plus file-header validation before writing.
+
+**Bug fixes**
+
+- Fixed distant outline targets causing the entire document to scroll slowly for an extended time.
+- Fixed folder full-text results opening a file without highlighting or revealing the matching text.
+- Fixed WebView printing exporting only the visible page and potentially including or being obscured by application side panels.
+
+> This release passed 102 frontend unit tests, Svelte checks, a production build, Rust checks, and PDF-write safety tests. Pagination of very long tables, remote images, and large-document memory behavior still require acceptance in installed Windows and macOS builds. The Canvas-based PDF path prioritizes rendering consistency and does not guarantee selectable text throughout the document.
 
 ### v0.1.9 (2026-08-28)
 
@@ -439,6 +456,10 @@ derivative tool developed under the permissions of an open-source license.
 
 Thank you to Vaibhav Kakde and every MDHero contributor for choosing open source and making further
 learning, modification, and independent development possible.
+
+Full-document PDF export is powered by [html2pdf.js](https://github.com/eKoopmans/html2pdf.js/),
+[html2canvas](https://github.com/niklasvh/html2canvas), and [jsPDF](https://github.com/parallax/jsPDF),
+all distributed under the MIT License.
 
 ## Contributing
 

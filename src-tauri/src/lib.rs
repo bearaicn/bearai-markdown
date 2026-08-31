@@ -203,6 +203,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::read_markdown_file,
             commands::write_markdown_file,
+            commands::write_pdf_file,
             commands::resolve_path,
             commands::path_exists,
             commands::allow_assets,

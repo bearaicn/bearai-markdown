@@ -11,6 +11,7 @@
   import { copyAsRichText, copyAsMarkdown } from "../utils/clipboard";
   import ReaderControls from "./ReaderControls.svelte";
   import brandLogo from "$lib/assets/bearai-markdown-icon.png";
+  import { exportRenderedDocumentToPdf } from "$lib/utils/pdfExport";
 
   let {
     onPaste = () => {},
@@ -145,15 +146,15 @@
   }
 
   async function handleExportPdf() {
+    copyFeedback = $messages.exportingPdf;
     try {
-      const { getCurrentWebview } = await import("@tauri-apps/api/webview");
-      const webview = getCurrentWebview() as ReturnType<typeof getCurrentWebview> & {
-        print: () => Promise<void>;
-      };
-      await webview.print();
-    } catch {
-      window.print();
+      const exported = await exportRenderedDocumentToPdf($document.fileName);
+      copyFeedback = exported ? $messages.pdfExported : "";
+    } catch (error) {
+      console.error("PDF export failed", error);
+      copyFeedback = $messages.pdfExportFailed;
     }
+    setTimeout(() => (copyFeedback = ""), 2500);
   }
 
   async function handleCopyRichText() {

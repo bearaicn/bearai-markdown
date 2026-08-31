@@ -4,6 +4,8 @@
   import { panelLayout } from "$lib/stores/panelLayout";
   import DirectoryTree from "./DirectoryTree.svelte";
   import { messages } from "$lib/i18n";
+  import { tick } from "svelte";
+  import { clearFolderSearchHighlight, highlightDocumentMatch } from "$lib/utils/documentMatchNavigation";
 
   let refreshKey = $state(0);
   let error = $state("");
@@ -13,6 +15,7 @@
   let searchError = $state("");
   let searchTimer: ReturnType<typeof setTimeout> | undefined;
   let searchSequence = 0;
+  let activeSearchPath = $state("");
 
   function clearSearch() {
     searchQuery = "";
@@ -21,6 +24,8 @@
     searching = false;
     searchSequence++;
     if (searchTimer) clearTimeout(searchTimer);
+    activeSearchPath = "";
+    clearFolderSearchHighlight();
   }
 
   function queueSearch() {
@@ -52,7 +57,12 @@
 
   async function openSearchResult(result: WorkspaceSearchResult) {
     const root = $folderWorkspace.rootPath;
-    if (root) await openWorkspaceFile(root, result.path);
+    if (!root) return;
+    activeSearchPath = result.path;
+    clearFolderSearchHighlight();
+    await openWorkspaceFile(root, result.path);
+    await tick();
+    requestAnimationFrame(() => highlightDocumentMatch(searchQuery, result.line));
   }
 
   async function chooseFolder() {
@@ -115,7 +125,7 @@
         {:else}
           <div class="result-count">{searchResults.length} {$messages.searchResultCount}</div>
           {#each searchResults as result (result.path)}
-            <button class="search-result" onclick={() => openSearchResult(result)} title={result.path}>
+            <button class="search-result" class:active={activeSearchPath === result.path} onclick={() => openSearchResult(result)} title={result.path}>
               <span class="result-path">{result.relativePath}</span>
               <span class="result-preview"><span class="result-line">{result.line}</span>{result.preview}</span>
             </button>
@@ -170,6 +180,7 @@
   .result-count { padding: 4px 12px 5px; color: #8e8e93; font-size: 10px; }
   .search-result { display: flex; width: 100%; flex-direction: column; gap: 2px; padding: 7px 11px; border: 0; background: transparent; text-align: left; cursor: pointer; }
   .search-result:hover { background: #e9e9ed; }
+  .search-result.active { background: var(--app-selection); box-shadow: inset 3px 0 var(--app-accent); }
   .result-path { width: 100%; overflow: hidden; color: #2c2c2e; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
   .result-preview { width: 100%; overflow: hidden; color: #707077; font-size: 11px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
   .result-line { display: inline-block; min-width: 20px; margin-right: 5px; color: #0891b2; font-variant-numeric: tabular-nums; }

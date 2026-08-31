@@ -85,6 +85,46 @@ html.dark ::-webkit-scrollbar-thumb {
   background: #3a3a3c;
 }
 
+.folder-search-target {
+  outline: 2px solid color-mix(in srgb, #f59e0b 60%, transparent);
+  outline-offset: 3px;
+}
+
+.pdf-export-host {
+  position: fixed;
+  left: -100000px;
+  top: 0;
+  width: 190mm;
+  z-index: -1;
+  background: #fff;
+}
+
+.pdf-export-document {
+  box-sizing: border-box;
+  width: 190mm !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #fff !important;
+  color: #111 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+
+.pdf-export-document pre,
+.pdf-export-document table,
+.pdf-export-document blockquote,
+.pdf-export-document img,
+.pdf-export-document .mermaid-diagram {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.pdf-export-document img,
+.pdf-export-document svg,
+.pdf-export-document table {
+  max-width: 100% !important;
+}
+
 /* Print / PDF export styles */
 @media print {
   body {

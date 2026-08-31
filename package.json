@@ -1,6 +1,6 @@
 {
   "name": "bearai-markdown",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "BearAI Markdown（熊智 Markdown）本地 Markdown 阅读、编辑与文件夹浏览工具",
   "author": "BearAI Contributors",
   "contributors": [
@@ -35,6 +35,7 @@
     "@tauri-apps/plugin-updater": "~2.10.1",
     "dompurify": "^3.3.3",
     "highlight.js": "^11.11.1",
+    "html2pdf.js": "0.14.0",
     "katex": "^0.16.45",
     "mark.js": "^8.11.1",
     "markdown-it": "^14.1.1",

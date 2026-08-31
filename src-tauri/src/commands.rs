@@ -49,6 +49,55 @@ pub fn write_markdown_file(path: String, content: String) -> Result<(), String> 
 }
 
 #[tauri::command]
+pub fn write_pdf_file(path: String, data: Vec<u8>) -> Result<(), String> {
+    let p = Path::new(&path);
+    let is_pdf = p
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.eq_ignore_ascii_case("pdf"))
+        .unwrap_or(false);
+    if !is_pdf {
+        return Err("PDF export requires a .pdf destination".into());
+    }
+    if !data.starts_with(b"%PDF-") {
+        return Err("Refusing to write invalid PDF data".into());
+    }
+    fs::write(p, data).map_err(|e| format!("Failed to write PDF: {}", e))
+}
+
+#[cfg(test)]
+mod pdf_export_tests {
+    use super::write_pdf_file;
+
+    #[test]
+    fn writes_only_pdf_data_to_pdf_destinations() {
+        let path = std::env::temp_dir().join("bearai-markdown-export-test.pdf");
+        write_pdf_file(
+            path.to_string_lossy().into_owned(),
+            b"%PDF-1.7\n%%EOF".to_vec(),
+        )
+        .unwrap();
+        assert!(path.exists());
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn rejects_wrong_extension_and_invalid_data() {
+        let dir = std::env::temp_dir();
+        assert!(write_pdf_file(
+            dir.join("export.txt").to_string_lossy().into_owned(),
+            b"%PDF-1.7".to_vec()
+        )
+        .is_err());
+        assert!(write_pdf_file(
+            dir.join("export.pdf").to_string_lossy().into_owned(),
+            b"not a pdf".to_vec()
+        )
+        .is_err());
+    }
+}
+
+#[tauri::command]
 pub fn resolve_path(path: String) -> Result<String, String> {
     let p = Path::new(&path);
     let absolute = if p.is_absolute() {
